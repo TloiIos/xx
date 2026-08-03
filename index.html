@@ -32,6 +32,7 @@
       background: var(--bg-2) !important;
       border: 1px solid var(--border) !important;
       transition: all 0.2s !important;
+      cursor: pointer !important;
     }
     .dg-actions .dg-action:hover {
       background: var(--bg-3) !important;
@@ -144,6 +145,108 @@
       font-family: 'Space Grotesk', monospace;
       font-size: 12px;
     }
+
+    /* Nav item với UID */
+    .nav-item[data-page="uid"] svg {
+      transform: scale(1.1);
+    }
+
+    /* UID List */
+    .uid-list {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    }
+    .uid-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      transition: all 0.2s;
+    }
+    .uid-card:hover {
+      border-color: var(--text-3);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .uid-card__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .uid-card__key {
+      font-family: 'Space Grotesk', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-1);
+    }
+    .uid-card__uid {
+      font-family: monospace;
+      font-size: 14px;
+      color: var(--text-1);
+      word-break: break-all;
+      background: var(--bg-1);
+      padding: 6px 10px;
+      border-radius: 6px;
+      margin: 4px 0;
+    }
+    .uid-card__meta {
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--text-3);
+      flex-wrap: wrap;
+    }
+    .uid-card__meta span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .uid-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .uid-badge--active {
+      background: var(--green-alpha);
+      color: var(--green);
+    }
+    .uid-badge--inactive {
+      background: var(--amber-alpha);
+      color: var(--amber);
+    }
+
+    /* Status badge */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .status-badge--completed {
+      background: var(--green-alpha);
+      color: var(--green);
+    }
+    .status-badge--pending {
+      background: var(--amber-alpha);
+      color: var(--amber);
+    }
+    .status-badge--failed {
+      background: var(--red-alpha);
+      color: var(--red);
+    }
+    .status-badge i {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
   </style>
 </head>
 <body>
@@ -186,6 +289,11 @@
           <svg viewBox="0 0 24 24"><path d="M14 7a5 5 0 11-4.9 6L3 19v2h4v-2h2v-2h2l1.1-1.1A5 5 0 0114 7z" stroke-linejoin="round"/><circle cx="15.5" cy="10.5" r="1.5"/></svg>
           <span>Danh sách Key</span>
           <span class="nav-count" id="navKeyCount">0</span>
+        </a>
+        <a class="nav-item" href="#" data-page="uid">
+          <svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>
+          <span>Quản lý UID</span>
+          <span class="nav-count nav-count--pink" id="navUIDCount">0</span>
         </a>
         <a class="nav-item" href="#" data-page="packages">
           <svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7l9-5z" fill="none" stroke-linejoin="round"/><path d="M3 7l9 5 9-5M12 12v10" fill="none" stroke-linejoin="round"/></svg>
@@ -425,6 +533,61 @@
               <span id="pageInfo">Hiển thị 0–0 / 0</span>
               <div class="pagination" id="pagination"></div>
             </footer>
+          </div>
+        </section>
+
+        <!-- ────── PAGE: UID ────── -->
+        <section class="page" data-page-id="uid">
+          <div class="page-head reveal">
+            <div>
+              <p class="page-head__eyebrow">Quản lý</p>
+              <h1 class="page-head__title">Danh sách <span class="text-gradient">UID</span></h1>
+              <p class="page-head__sub">Quản lý tất cả UID đang hoạt động trong hệ thống.</p>
+            </div>
+            <div class="page-head__actions">
+              <button class="btn btn--primary" id="addGlobalUIDBtn">
+                <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                Thêm UID
+              </button>
+            </div>
+          </div>
+
+          <div class="panel panel--table reveal" style="--d:.08s">
+            <header class="panel__head panel__head--table">
+              <div>
+                <h2>Tất cả UID</h2>
+                <p id="uidSubtitle">Đang tải dữ liệu…</p>
+              </div>
+              <div class="table-tools">
+                <div class="field field--search">
+                  <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                  <input type="text" id="uidSearch" placeholder="Tìm UID, key liên kết…" autocomplete="off" />
+                </div>
+                <div class="select-wrap">
+                  <select id="uidStatusFilter" aria-label="Lọc theo trạng thái">
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="active">Đang dùng</option>
+                    <option value="inactive">Chưa dùng</option>
+                  </select>
+                </div>
+              </div>
+            </header>
+
+            <div class="datagrid" id="uidGrid">
+              <div class="datagrid__head datagrid__head--uid">
+                <span class="dg-cell">UID</span>
+                <span class="dg-cell">Key liên kết</span>
+                <span class="dg-cell">Gói</span>
+                <span class="dg-cell">Trạng thái</span>
+                <span class="dg-cell dg-cell--end">Thao tác</span>
+              </div>
+              <div class="datagrid__body" id="uidBody"></div>
+              <div class="datagrid__empty" id="uidEmpty" hidden>
+                <svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>
+                <strong>Không tìm thấy UID</strong>
+                <p>Thử đổi từ khoá tìm kiếm hoặc bộ lọc.</p>
+              </div>
+            </div>
           </div>
         </section>
 
