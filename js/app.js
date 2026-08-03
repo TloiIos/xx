@@ -1,4 +1,4 @@
-// app.js
+// app.js - Fix lỗi tìm kiếm, sắp xếp và thêm UID mới nhất
 (() => {
   "use strict";
 
@@ -59,23 +59,14 @@
     return "—";
   };
 
-  function getPkgMaxDevices(id) {
-    if (!id) return 1;
-    if (packages[id]) return packages[id].maxDevices || 1;
-    return 1;
-  }
-
-  function getPkgDuration(id) {
-    if (!id) return 0;
-    const pkg = packages[id];
-    if (!pkg) return 0;
-    if (pkg.durationDays !== undefined) return pkg.durationDays;
-    if (pkg.duration) {
-      if (pkg.duration > 1000000000000) return Math.floor(pkg.duration / 86400000);
-      return pkg.duration;
-    }
-    return 0;
-  }
+  // Lấy UID mới nhất (cái cuối cùng trong danh sách devices)
+  const getLatestUID = (devices) => {
+    if (!devices || typeof devices !== 'object') return null;
+    const deviceKeys = Object.keys(devices);
+    if (deviceKeys.length === 0) return null;
+    // Trả về UID cuối cùng (mới nhất)
+    return deviceKeys[deviceKeys.length - 1];
+  };
 
   const fmtPrice = (v) => v ? Number(v).toLocaleString("vi-VN") + "đ" : "Miễn phí";
 
@@ -147,6 +138,10 @@
       const [k, p] = await Promise.all([KeyAPI.getKeys(), KeyAPI.getPackages()]);
       keys = k;
       packages = p;
+      
+      console.log('🔑 Keys loaded:', Object.keys(keys).length);
+      console.log('📦 Packages loaded:', Object.keys(packages).length);
+      
       renderAll();
       if (notify) toast("success", "Đã làm mới", "Dữ liệu đã được đồng bộ từ Firebase.");
     } catch (err) {
@@ -206,12 +201,14 @@
       const st = keyStatus(k);
       const deviceCount = Object.keys(k.devices || {}).length;
       const keyDisplay = k.key || id;
+      const latestUID = getLatestUID(k.devices);
       return `
       <li class="activity-item">
         <div class="activity-item__dot" style="--dot:${st === "active" ? "var(--green)" : st === "banned" ? "var(--red)" : "var(--amber)"}"></div>
         <div class="activity-item__body">
           <p><code class="key-code" data-copy="${esc(keyDisplay)}" title="Nhấn để sao chép">${esc(keyDisplay)}</code></p>
           <span>${esc(pkgName(k.packageId || k.package))} · ${deviceCount}/${k.maxDevices || 1} thiết bị · ${fmtDate(k.createdAt)}</span>
+          ${latestUID ? `<span style="font-size:11px;color:var(--text-3)">🆕 UID: ${esc(latestUID.substring(0, 8))}...</span>` : ''}
         </div>
         <span class="status-badge status-badge--${st === "active" ? "completed" : st === "banned" ? "failed" : "pending"}"><i></i>${st === "active" ? "Còn hạn" : st === "banned" ? "Bị khoá" : "Hết hạn"}</span>
       </li>`;
@@ -316,29 +313,72 @@
       _packageName: pkgName(k.packageId || k.package),
       _deviceCount: Object.keys(k.devices || {}).length,
       _maxDevices: k.maxDevices || 1,
-      _keyDisplay: k.key || id
+      _keyDisplay: k.key || id,
+      _latestUID: getLatestUID(k.devices)
     }));
     
-    const q = table.search.toLowerCase();
-    if (q) list = list.filter(k => 
-      (k._keyDisplay || "").toLowerCase().includes(q) || 
-      (k.note || "").toLowerCase().includes(q) || 
-      k._packageName.toLowerCase().includes(q)
-    );
-    if (table.status !== "all") list = list.filter(k => k._status === table.status);
+    // Tìm kiếm - Fix lỗi tìm kiếm
+    const q = table.search.trim().toLowerCase();
+    if (q) {
+      list = list.filter(k => {
+        const searchFields = [
+          (k._keyDisplay || "").toLowerCase(),
+          (k.note || "").toLowerCase(),
+          k._packageName.toLowerCase(),
+          (k.packageId || "").toLowerCase()
+        ];
+        // Thêm tìm kiếm trong devices
+        if (k.devices) {
+          Object.keys(k.devices).forEach(uid => {
+            searchFields.push(uid.toLowerCase());
+          });
+        }
+        return searchFields.some(field => field.includes(q));
+      });
+    }
+    
+    // Lọc theo trạng thái
+    if (table.status !== "all") {
+      list = list.filter(k => k._status === table.status);
+    }
+    
+    // Lọc theo gói
     if (table.pkg !== "all") {
       const pkgId = table.pkg;
       list = list.filter(k => (k.packageId || k.package) === pkgId);
     }
+    
+    // Sắp xếp
     list.sort((a, b) => {
-      let va = a[table.sortKey], vb = b[table.sortKey];
-      if (table.sortKey === "package") { va = a._packageName; vb = b._packageName; }
-      if (table.sortKey === "devices") { va = a._deviceCount; vb = b._deviceCount; }
-      if (table.sortKey === "key") { va = a._keyDisplay; vb = b._keyDisplay; }
-      va = va ?? 0; vb = vb ?? 0;
-      const r = typeof va === "string" ? va.localeCompare(vb) : va - vb;
+      let va = a[table.sortKey];
+      let vb = b[table.sortKey];
+      
+      if (table.sortKey === "package") { 
+        va = a._packageName; 
+        vb = b._packageName; 
+      }
+      if (table.sortKey === "devices") { 
+        va = a._deviceCount; 
+        vb = b._deviceCount; 
+      }
+      if (table.sortKey === "key") { 
+        va = a._keyDisplay; 
+        vb = b._keyDisplay; 
+      }
+      
+      va = va ?? 0;
+      vb = vb ?? 0;
+      
+      let r;
+      if (typeof va === "string" && typeof vb === "string") {
+        r = va.localeCompare(vb);
+      } else {
+        r = (va as number) - (vb as number);
+      }
+      
       return table.sortDir === "asc" ? r : -r;
     });
+    
     return list;
   }
 
@@ -379,11 +419,13 @@
       
       const deviceInfo = `${k._deviceCount}/${k._maxDevices}`;
       const keyDisplay = k._keyDisplay;
+      const latestUID = k._latestUID;
       
       return `
       <div class="dg-row dg-row--keys" data-key-id="${esc(k.id)}">
         <span class="dg-cell dg-id">
           <code class="key-code" data-copy="${esc(keyDisplay)}" title="Nhấn để sao chép">${esc(keyDisplay)}</code>
+          ${latestUID ? `<span style="display:block;font-size:10px;color:var(--text-3);margin-top:2px">🆕 ${esc(latestUID.substring(0, 12))}...</span>` : ''}
         </span>
         <span class="dg-cell dg-product">${esc(k._packageName)}</span>
         <span class="dg-cell dg-date">${fmtDate(k.createdAt)}</span>
@@ -394,18 +436,18 @@
           </span>
         </span>
         <span class="dg-cell">${badge}</span>
-        <span class="dg-cell dg-cell--end dg-actions">
-          <button class="dg-action" data-view-devices="${esc(k.id)}" title="Xem thiết bị">
-            <svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>
+        <span class="dg-cell dg-cell--end dg-actions" style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">
+          <button class="dg-action" data-view-devices="${esc(k.id)}" title="Xem thiết bị" style="padding:4px 6px;">
+            <svg viewBox="0 0 24 24" width="16" height="16"><rect x="5" y="8" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>
           </button>
-          <button class="dg-action" data-copy="${esc(keyDisplay)}" title="Sao chép key">
-            <svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+          <button class="dg-action" data-copy="${esc(keyDisplay)}" title="Sao chép key" style="padding:4px 6px;">
+            <svg viewBox="0 0 24 24" width="16" height="16"><rect x="9" y="9" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
           </button>
-          <button class="dg-action" data-ban="${esc(k.id)}" title="${st === "banned" ? "Mở khoá key" : "Khoá key"}">
-            <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 018 0v3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+          <button class="dg-action" data-ban="${esc(k.id)}" title="${st === "banned" ? "Mở khoá key" : "Khoá key"}" style="padding:4px 6px;">
+            <svg viewBox="0 0 24 24" width="16" height="16"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 018 0v3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
           </button>
-          <button class="dg-action dg-action--danger" data-del="${esc(k.id)}" title="Xoá key">
-            <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M6.5 7l1 13h9l1-13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <button class="dg-action dg-action--danger" data-del="${esc(k.id)}" title="Xoá key" style="padding:4px 6px;">
+            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M6.5 7l1 13h9l1-13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
         </span>
       </div>`;
@@ -435,22 +477,55 @@
 
   /* ── TABLE EVENTS ──────────────────────────── */
   const search = $("#tableSearch");
-  if (search) search.addEventListener("input", e => { table.search = e.target.value; table.page = 1; renderTable(); });
+  if (search) {
+    search.addEventListener("input", e => { 
+      table.search = e.target.value; 
+      table.page = 1; 
+      renderTable(); 
+    });
+  }
+  
   const statusFilter = $("#statusFilter");
-  if (statusFilter) statusFilter.addEventListener("change", e => { table.status = e.target.value; table.page = 1; renderTable(); });
+  if (statusFilter) {
+    statusFilter.addEventListener("change", e => { 
+      table.status = e.target.value; 
+      table.page = 1; 
+      renderTable(); 
+    });
+  }
+  
   const packageFilter = $("#packageFilter");
-  if (packageFilter) packageFilter.addEventListener("change", e => { table.pkg = e.target.value; table.page = 1; renderTable(); });
+  if (packageFilter) {
+    packageFilter.addEventListener("change", e => { 
+      table.pkg = e.target.value; 
+      table.page = 1; 
+      renderTable(); 
+    });
+  }
+  
   const pagination = $("#pagination");
-  if (pagination) pagination.addEventListener("click", e => {
-    const btn = e.target.closest("[data-pg]");
-    if (btn && !btn.disabled) { table.page = +btn.dataset.pg; renderTable(); }
+  if (pagination) {
+    pagination.addEventListener("click", e => {
+      const btn = e.target.closest("[data-pg]");
+      if (btn && !btn.disabled) { 
+        table.page = +btn.dataset.pg; 
+        renderTable(); 
+      }
+    });
+  }
+  
+  $$(".dg-cell--sortable").forEach(b => {
+    b.addEventListener("click", () => {
+      const k = b.dataset.sort;
+      if (table.sortKey === k) {
+        table.sortDir = table.sortDir === "asc" ? "desc" : "asc";
+      } else { 
+        table.sortKey = k; 
+        table.sortDir = "desc"; 
+      }
+      renderTable();
+    });
   });
-  $$(".dg-cell--sortable").forEach(b => b.addEventListener("click", () => {
-    const k = b.dataset.sort;
-    if (table.sortKey === k) table.sortDir = table.sortDir === "asc" ? "desc" : "asc";
-    else { table.sortKey = k; table.sortDir = "desc"; }
-    renderTable();
-  }));
 
   // ── MODAL: XEM THIẾT BỊ ─────────────────────
   function showDevicesModal(keyId) {
@@ -464,13 +539,14 @@
     const currentCount = deviceList.length;
     const maxDevices = key.maxDevices || 1;
     const isFull = currentCount >= maxDevices;
+    const latestUID = getLatestUID(devices);
     
     const modal = document.createElement('div');
     modal.className = 'modal is-open';
     modal.style.display = 'flex';
     modal.innerHTML = `
       <div class="modal__backdrop" data-close-modal></div>
-      <div class="modal__panel" style="max-width:500px">
+      <div class="modal__panel" style="max-width:550px">
         <header class="modal__head">
           <div>
             <h2>📱 Thiết bị của key</h2>
@@ -487,11 +563,23 @@
               ${isFull ? '⚠️ Đã đầy' : '+ Thêm UID'}
             </button>
           </div>
+          
+          ${latestUID ? `
+            <div style="background:var(--bg-2);padding:10px 14px;border-radius:8px;margin-bottom:12px;border-left:3px solid var(--cyan)">
+              <span style="font-size:12px;color:var(--text-3)">🆕 UID mới nhất</span>
+              <div style="font-family:monospace;font-size:14px;font-weight:600;color:var(--text-1);word-break:break-all">${esc(latestUID)}</div>
+              <span style="font-size:11px;color:var(--text-3)">Thiết bị đang hoạt động</span>
+            </div>
+          ` : `<div style="background:var(--bg-2);padding:10px 14px;border-radius:8px;margin-bottom:12px;border-left:3px solid var(--amber)"><span style="font-size:13px;color:var(--text-3)">⚠️ Chưa có thiết bị nào</span></div>`}
+          
           ${deviceList.length ? `
             <ul style="list-style:none;padding:0;margin:0">
-              ${deviceList.map(([uid, active]) => `
-                <li style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);font-family:monospace;font-size:13px">
-                  <span>${esc(uid)}</span>
+              ${deviceList.map(([uid, active], index) => `
+                <li style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);font-family:monospace;font-size:13px;${uid === latestUID ? 'background:var(--bg-2);border-radius:4px;' : ''}">
+                  <span style="display:flex;align-items:center;gap:6px">
+                    ${uid === latestUID ? '⭐' : ''}
+                    ${esc(uid)}
+                  </span>
                   <span>
                     <span class="status-badge status-badge--${active ? 'completed' : 'pending'}" style="font-size:11px">
                       <i></i>${active ? '✅ Đang dùng' : '❌ Chưa dùng'}
@@ -518,9 +606,8 @@
         toast('warning', 'Đã đầy', `Key chỉ hỗ trợ tối đa ${maxDevices} thiết bị.`);
         return;
       }
-      const uid = prompt('Nhập UID thiết bị:');
+      const uid = prompt('Nhập UID thiết bị mới:');
       if (uid && uid.trim()) {
-        // Kiểm tra UID đã tồn tại
         if (key.devices && key.devices[uid.trim()]) {
           toast('warning', 'UID đã tồn tại', `UID ${uid.trim()} đã được thêm trước đó.`);
           return;
@@ -564,7 +651,7 @@
     });
   }
 
-  // Delegated: copy / ban / delete / view-devices
+  // Delegated events
   document.addEventListener("click", async (e) => {
     const copyEl = e.target.closest("[data-copy]");
     if (copyEl) {
@@ -663,22 +750,30 @@
   // Create key buttons
   ["#topCreateKeyBtn", "#dashCreateKeyBtn", "#keysCreateBtn"].forEach(sel => {
     const btn = $(sel);
-    if (btn) btn.addEventListener("click", () => {
-      if (!Object.keys(packages).length) {
-        toast("warning", "Chưa có gói", "Hãy tạo gói trước khi tạo key.");
-        gotoPage("packages");
-        openModal("#pkgModal");
-        return;
-      }
-      openModal("#keyModal");
-    });
+    if (btn) {
+      btn.addEventListener("click", () => {
+        if (!Object.keys(packages).length) {
+          toast("warning", "Chưa có gói", "Hãy tạo gói trước khi tạo key.");
+          gotoPage("packages");
+          openModal("#pkgModal");
+          return;
+        }
+        openModal("#keyModal");
+      });
+    }
   });
   
   const createPkgBtn = $("#createPkgBtn");
   if (createPkgBtn) createPkgBtn.addEventListener("click", () => openModal("#pkgModal"));
   
   const searchTrigger = $("#searchTrigger");
-  if (searchTrigger) searchTrigger.addEventListener("click", () => { gotoPage("keys"); const s = $("#tableSearch"); if (s) s.focus(); });
+  if (searchTrigger) {
+    searchTrigger.addEventListener("click", () => { 
+      gotoPage("keys"); 
+      const s = $("#tableSearch"); 
+      if (s) s.focus(); 
+    });
+  }
 
   /* ── FORM: TẠO KEY ─────────────────────────── */
   const keyForm = $("#keyForm");
@@ -819,6 +914,7 @@
         } else {
           const st = keyStatus(rec);
           const deviceCount = Object.keys(rec.devices || {}).length;
+          const latestUID = getLatestUID(rec.devices);
           const map = {
             active: { cls: "valid", icon: "✅", label: "Key hợp lệ — Còn hạn" },
             expired: { cls: "expired", icon: "⏱", label: "Key đã hết hạn" },
@@ -837,7 +933,7 @@
                   <li><span>Hết hạn</span><b>${rec.expiresAt ? fmtDate(rec.expiresAt) : "Vĩnh viễn"}</b></li>
                   <li><span>Thời gian còn lại</span><b>${timeLeft(rec)}</b></li>
                   <li><span>Thiết bị</span><b>${deviceCount} / ${rec.maxDevices || 1}</b></li>
-                  <li><span>Giới hạn thiết bị</span><b>${rec.maxDevices || 1}</b></li>
+                  <li><span>UID mới nhất</span><b style="font-family:monospace;font-size:12px">${latestUID ? esc(latestUID) : 'Chưa có'}</b></li>
                   ${rec.note ? `<li><span>Ghi chú</span><b>${esc(rec.note)}</b></li>` : ""}
                 </ul>
               </div>`;
@@ -922,9 +1018,9 @@
     exportBtn.addEventListener("click", () => {
       const list = Object.values(keys);
       if (!list.length) { toast("info", "Không có dữ liệu", "Chưa có key nào để xuất."); return; }
-      const lines = ["Key,Gói,Ngày tạo,Hết hạn,Trạng thái,Thiết bị"];
+      const lines = ["Key,Gói,Ngày tạo,Hết hạn,Trạng thái,Thiết bị,UID mới nhất"];
       list.forEach(k => lines.push(
-        `${k.key},${pkgName(k.packageId || k.package)},${fmtDate(k.createdAt)},${k.expiresAt ? fmtDate(k.expiresAt) : "Vĩnh viễn"},${keyStatus(k)},${Object.keys(k.devices || {}).length}/${k.maxDevices || 1}`
+        `${k.key},${pkgName(k.packageId || k.package)},${fmtDate(k.createdAt)},${k.expiresAt ? fmtDate(k.expiresAt) : "Vĩnh viễn"},${keyStatus(k)},${Object.keys(k.devices || {}).length}/${k.maxDevices || 1},${getLatestUID(k.devices) || ""}`
       ));
       const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
       const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `keys-${new Date().toISOString().slice(0, 10)}.csv` });
