@@ -550,6 +550,37 @@
   transform-origin: left;
   animation: toast-progress linear forwards;
 }
+/* Thêm vào cuối components.css */
+
+/* ── Device Badge ── */
+.device-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  background: rgba(129, 140, 248, 0.08);
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(129, 140, 248, 0.15);
+  white-space: nowrap;
+}
+.device-badge--full {
+  color: var(--red);
+  background: rgba(251, 113, 133, 0.1);
+  border-color: rgba(251, 113, 133, 0.2);
+}
+.device-badge .device-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.device-badge .device-icon svg {
+  width: 100%;
+  height: 100%;
+}
 .toast--success .toast__progress { background: var(--green); }
 .toast--danger  .toast__progress { background: var(--red); }
 .toast--warning .toast__progress { background: var(--amber); }

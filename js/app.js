@@ -26,14 +26,12 @@
     if (!rec) return "unknown";
     if (rec.status === "banned" || rec.status === "inactive") return "banned";
     if (!rec.expiresAt) return "active";
-    // Fix: So sánh với timestamp hiện tại
     const expiresAt = typeof rec.expiresAt === 'string' ? parseInt(rec.expiresAt) : rec.expiresAt;
     return expiresAt > now() ? "active" : "expired";
   }
 
   const fmtDate = (ts) => {
     if (!ts) return "—";
-    // Fix: Xử lý timestamp
     let date;
     if (typeof ts === 'string') {
       date = new Date(parseInt(ts));
@@ -64,12 +62,9 @@
     return prefix ? `${prefix.toUpperCase()}-${body}` : body;
   }
 
-  // Fix: Hàm pkgName xử lý packageId đúng cách
   const pkgName = (id) => {
     if (!id) return "—";
-    // Kiểm tra trực tiếp trong packages object
     if (packages[id]) return packages[id].name || "—";
-    // Kiểm tra nếu id là key trong packages
     for (const [pkgId, pkg] of Object.entries(packages)) {
       if (pkgId === id) return pkg.name || "—";
     }
@@ -387,6 +382,13 @@
       ? `Hiển thị ${start + 1}–${Math.min(start + PAGE_SIZE, list.length)} / ${list.length}`
       : "Hiển thị 0–0 / 0";
 
+    const deviceIcon = `
+      <svg class="device-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="5" y="2" width="14" height="20" rx="2"/>
+        <line x1="12" y1="18" x2="12.01" y2="18"/>
+      </svg>
+    `;
+
     body.innerHTML = slice.map(k => {
       const st = k._status;
       const badge = st === "active"
@@ -397,33 +399,43 @@
       
       const deviceInfo = `${k._deviceCount}/${k._maxDevices}`;
       const keyDisplay = k._keyDisplay;
+      const isFull = k._deviceCount >= k._maxDevices;
       
       return `
       <div class="dg-row dg-row--keys" data-key-id="${esc(k.id)}">
         <span class="dg-cell dg-id">
           <code class="key-code" data-copy="${esc(keyDisplay)}" title="Nhấn để sao chép">${esc(keyDisplay)}</code>
         </span>
-        <span class="dg-cell dg-product">${esc(k._packageName)}</span>
-        <span class="dg-cell dg-date">${fmtDate(k.createdAt)}</span>
-        <span class="dg-cell dg-date" title="${esc(timeLeft(k))}">${k.expiresAt ? fmtDate(k.expiresAt) : "Vĩnh viễn"}</span>
+        <span class="dg-cell dg-product" style="font-weight:500;color:var(--text-2)">${esc(k._packageName)}</span>
+        <span class="dg-cell dg-date" style="font-size:12px;color:var(--text-3)">${fmtDate(k.createdAt)}</span>
+        <span class="dg-cell dg-date" style="font-size:12px;color:var(--text-3)" title="${esc(timeLeft(k))}">${k.expiresAt ? fmtDate(k.expiresAt) : "Vĩnh viễn"}</span>
         <span class="dg-cell dg-devices">
-          <span class="device-badge ${k._deviceCount >= k._maxDevices ? 'device-badge--full' : ''}" title="${k._deviceCount} thiết bị đang dùng / ${k._maxDevices} tối đa">
-            📱 ${deviceInfo}
+          <span class="device-badge ${isFull ? 'device-badge--full' : ''}" title="${k._deviceCount} thiết bị đang dùng / ${k._maxDevices} tối đa">
+            ${deviceIcon}
+            ${deviceInfo}
           </span>
         </span>
         <span class="dg-cell">${badge}</span>
         <span class="dg-cell dg-cell--end dg-actions">
           <button class="dg-action" data-view-devices="${esc(k.id)}" title="Xem thiết bị">
-            <svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>
+            ${deviceIcon}
           </button>
           <button class="dg-action" data-copy="${esc(keyDisplay)}" title="Sao chép key">
-            <svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="12" height="12" rx="2"/>
+              <path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1"/>
+            </svg>
           </button>
           <button class="dg-action" data-ban="${esc(k.id)}" title="${st === "banned" ? "Mở khoá key" : "Khoá key"}">
-            <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 018 0v3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="5" y="11" width="14" height="9" rx="2"/>
+              <path d="M8 11V8a4 4 0 018 0v3"/>
+            </svg>
           </button>
           <button class="dg-action dg-action--danger" data-del="${esc(k.id)}" title="Xoá key">
-            <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M6.5 7l1 13h9l1-13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M6.5 7l1 13h9l1-13"/>
+            </svg>
           </button>
         </span>
       </div>`;
@@ -515,7 +527,7 @@
                       <i></i>${active ? '✅ Đang dùng' : '❌ Chưa dùng'}
                     </span>
                     <button class="dg-action dg-action--danger" data-remove-device="${esc(uid)}" title="Xoá UID" style="margin-left:8px">
-                      <svg viewBox="0 0 24 24" width="14" height="14"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M6.5 7l1 13h9l1-13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M6.5 7l1 13h9l1-13"/></svg>
                     </button>
                   </span>
                 </li>
@@ -583,7 +595,6 @@
 
   /* ── DEVICES PAGE ────────────────────────────── */
   function renderDevices() {
-    // Thu thập tất cả UID từ các key
     const deviceMap = new Map();
     let latestUid = null;
     let latestTime = 0;
@@ -614,7 +625,6 @@
       });
     });
 
-    // Render stats
     const totalDevices = deviceMap.size;
     const statActiveDevices = $("#statActiveDevices");
     if (statActiveDevices) statActiveDevices.textContent = totalDevices;
@@ -623,7 +633,6 @@
     const navDeviceCount = $("#navDeviceCount");
     if (navDeviceCount) navDeviceCount.textContent = totalDevices;
 
-    // UID mới nhất
     const latestUidDisplay = $("#latestUidDisplay");
     const latestUidTime = $("#latestUidTime");
     if (latestUid) {
@@ -634,7 +643,6 @@
       if (latestUidTime) latestUidTime.textContent = 'Chưa có UID';
     }
 
-    // Render UID table
     renderUidTable(deviceMap);
   }
 
@@ -643,7 +651,6 @@
     const empty = document.getElementById('uidTableEmpty');
     if (!body) return;
 
-    // Lọc theo search
     const search = uidSearch.toLowerCase();
     let list = Array.from(deviceMap.values());
     if (search) {
@@ -653,7 +660,6 @@
       );
     }
 
-    // Sắp xếp
     if (uidSortKey) {
       list.sort((a, b) => {
         let va = a[uidSortKey], vb = b[uidSortKey];
@@ -665,7 +671,6 @@
       });
     }
 
-    // Pagination
     const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
     if (uidPage > pages) uidPage = pages;
     const start = (uidPage - 1) * PAGE_SIZE;
@@ -676,7 +681,6 @@
 
     if (empty) empty.hidden = list.length > 0;
 
-    // UID page info
     const uidInfo = document.getElementById('uidPageInfo');
     if (uidInfo) {
       uidInfo.textContent = list.length
@@ -692,16 +696,15 @@
         <span class="dg-cell"><span class="status-badge status-badge--completed"><i></i>Đang dùng</span></span>
         <span class="dg-cell dg-cell--end dg-actions">
           <button class="dg-action" data-copy="${esc(d.uid)}" title="Sao chép UID">
-            <svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1"/></svg>
           </button>
           <button class="dg-action dg-action--danger" data-remove-uid="${esc(d.uid)}" title="Xoá UID">
-            <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M6.5 7l1 13h9l1-13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M6.5 7l1 13h9l1-13"/></svg>
           </button>
         </span>
       </div>
     `).join('');
 
-    // UID pagination
     const uidPag = document.getElementById('uidPagination');
     if (uidPag) {
       let html = `<button class="page-btn" data-uid-pg="${uidPage - 1}" ${uidPage === 1 ? "disabled" : ""}>‹</button>`;
@@ -718,14 +721,12 @@
   }
 
   // ── UID EVENTS ──────────────────────────────────
-  // Tìm kiếm UID
   document.getElementById('uidSearch')?.addEventListener('input', (e) => {
     uidSearch = e.target.value;
     uidPage = 1;
     renderDevices();
   });
 
-  // Sort UID
   document.querySelectorAll('[data-sort-uid]').forEach(btn => {
     btn.addEventListener('click', () => {
       const key = btn.dataset.sortUid;
@@ -739,7 +740,6 @@
     });
   });
 
-  // UID Pagination
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-uid-pg]');
     if (btn && !btn.disabled) {
@@ -758,7 +758,6 @@
         return;
       }
 
-      // Lấy danh sách UID đã có
       const existingUids = new Set();
       keyList.forEach(k => {
         if (k.devices) {
@@ -775,7 +774,6 @@
       let totalAdded = 0;
       let totalSkipped = 0;
 
-      // Xác nhận với người dùng
       const confirmMsg = `Set ${uidList.length} UID cho tất cả ${keyList.length} key?\n\n` +
         `UID: ${uidList.slice(0, 5).join(', ')}${uidList.length > 5 ? `... (+${uidList.length - 5})` : ''}\n\n` +
         `⚠️ Mỗi key sẽ được gán tất cả UID này (nếu chưa có).`;
@@ -792,7 +790,6 @@
           const maxDevices = key.maxDevices || 999;
           const currentCount = Object.keys(currentDevices).length;
           
-          // Kiểm tra giới hạn
           if (currentCount >= maxDevices) {
             totalSkipped++;
             continue;
@@ -801,7 +798,6 @@
           const newDevices = { ...currentDevices };
           let added = 0;
 
-          // Thêm từng UID
           for (const uid of uidList) {
             if (added >= maxDevices - currentCount) break;
             if (!newDevices[uid]) {
@@ -884,7 +880,6 @@
       btn.disabled = true;
 
       try {
-        // Tìm key trong danh sách
         let foundKey = null;
         let foundId = null;
         for (const [id, data] of Object.entries(keys)) {
@@ -902,12 +897,10 @@
           return;
         }
 
-        // Kiểm tra giới hạn thiết bị
         const currentDevices = foundKey.devices || {};
         const maxDevices = foundKey.maxDevices || 1;
         const activeCount = Object.values(currentDevices).filter(v => v === true).length;
         
-        // Kiểm tra nếu UID đã tồn tại trong key khác
         let uidExistsInOtherKey = false;
         for (const [id, data] of Object.entries(keys)) {
           if (data.devices && data.devices[uidVal] && id !== foundId) {
@@ -923,7 +916,6 @@
           return;
         }
 
-        // Kiểm tra UID đã có trong key này chưa
         if (currentDevices[uidVal]) {
           toast('info', 'UID đã tồn tại', `UID ${uidVal} đã có trong key này.`);
           btn.classList.remove('is-loading');
@@ -938,7 +930,6 @@
           return;
         }
 
-        // Thêm UID
         const newDevices = { ...currentDevices };
         newDevices[uidVal] = true;
         await KeyAPI.updateKey(foundId, { devices: newDevices });
@@ -1198,7 +1189,6 @@
       if (btn) { btn.classList.add("is-loading"); btn.disabled = true; }
       if (result) result.hidden = true;
       try {
-        // Fix: Tìm key trong danh sách đã load thay vì gọi API
         let foundKey = null;
         let foundId = null;
         for (const [id, data] of Object.entries(keys)) {
