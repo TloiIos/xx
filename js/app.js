@@ -19,6 +19,16 @@
   let uidSortDir = 'desc';
   let uidPage = 1;
 
+  // Device Manager State
+  let deviceManagerSearch = '';
+  let bannedUIDs = {};
+  let selectedUID = null;
+  let deviceLogs = {};
+
+  // APP & Device State
+  let appDeviceSearch = '';
+  let appDeviceData = {};
+
   /* ── HELPERS ───────────────────────────────── */
   const now = () => Date.now();
 
@@ -159,6 +169,8 @@
       const [k, p] = await Promise.all([KeyAPI.getKeys(), KeyAPI.getPackages()]);
       keys = k;
       packages = p;
+      // Load banned UIDs
+      bannedUIDs = await KeyAPI.getBannedUIDs();
       renderAll();
       if (notify) toast("success", "Đã làm mới", "Dữ liệu đã được đồng bộ từ Firebase.");
     } catch (err) {
@@ -179,6 +191,8 @@
     renderPkgFilters();
     renderTable();
     renderDevices();
+    renderDeviceManager();
+    renderAppDevice();
   }
 
   /* ── STATS ─────────────────────────────────── */
@@ -948,6 +962,664 @@
     });
   }
 
+  /* ── DEVICE MANAGER ────────────────────────────── */
+  async function renderDeviceManager() {
+    await renderDeviceStats();
+    await renderDeviceList();
+  }
+
+  async function renderDeviceStats() {
+    try {
+      const bannedData = await KeyAPI.getBannedUIDs();
+      bannedUIDs = bannedData;
+      
+      const bannedCount = Object.keys(bannedData).filter(uid => bannedData[uid]?.banned === true).length;
+      const flaggedCount = Object.keys(bannedData).filter(uid => bannedData[uid]?.flagged === true).length;
+      
+      const allDevices = await KeyAPI.getAllDeviceInfo();
+      const totalDevices = Object.keys(allDevices).length;
+      
+      const el = (id, val) => { const e = $(`#${id}`); if (e) e.textContent = val; };
+      el("statTotalDevices", totalDevices);
+      el("statBannedUIDs", bannedCount);
+      el("statFlaggedUIDs", flaggedCount);
+      el("navDeviceManagerCount", totalDevices);
+      
+      let failedLogs = 0;
+      const today = new Date().toDateString();
+      const allLogs = await KeyAPI.getAllLoginLogs();
+      for (const [uid, logs] of Object.entries(allLogs || {})) {
+        if (logs && typeof logs === 'object') {
+          for (const [timestamp, log] of Object.entries(logs)) {
+            if (log.status === 'failed') {
+              const logDate = new Date(parseInt(timestamp)).toDateString();
+              if (logDate === today) failedLogs++;
+            }
+          }
+        }
+      }
+      el("statFailedLogs", failedLogs);
+    } catch (err) {
+      console.error('Lỗi load device stats:', err);
+    }
+  }
+
+  async function renderDeviceList() {
+    const body = document.getElementById('deviceManagerBody');
+    const empty = document.getElementById('deviceManagerEmpty');
+    if (!body) return;
+    
+    try {
+      const allDevices = await KeyAPI.getAllDeviceInfo();
+      const search = deviceManagerSearch.toLowerCase();
+      
+      let list = Object.entries(allDevices).map(([uid, info]) => ({
+        uid,
+        ...info,
+        isBanned: bannedUIDs[uid]?.banned || false,
+        isFlagged: bannedUIDs[uid]?.flagged || false
+      }));
+      
+      if (search) {
+        list = list.filter(d => 
+          d.uid.toLowerCase().includes(search) ||
+          (d.device_name || '').toLowerCase().includes(search) ||
+          (d.keyName || '').toLowerCase().includes(search)
+        );
+      }
+      
+      list.sort((a, b) => (b.last_seen || 0) - (a.last_seen || 0));
+      
+      if (empty) empty.hidden = list.length > 0;
+      
+      body.innerHTML = list.map(d => {
+        const status = d.isBanned ? 'Bị ban' : (d.isFlagged ? '⚠️ Flag' : '✅ Bình thường');
+        const statusColor = d.isBanned ? 'var(--red)' : (d.isFlagged ? 'var(--amber)' : 'var(--green)');
+        const lastSeen = d.last_seen ? fmtDate(parseInt(d.last_seen) * 1000) : '—';
+        const deviceName = d.device_name || 'Unknown';
+        
+        return `
+        <div class="dg-row" style="grid-template-columns:0.8fr 1.2fr 0.8fr 0.8fr 0.7fr 0.7fr;cursor:pointer" data-uid="${esc(d.uid)}">
+          <span class="dg-cell" style="font-family:monospace;font-size:11px;text-transform:none">${esc(d.uid)}</span>
+          <span class="dg-cell" style="text-transform:none;font-weight:500;color:var(--text-1)">${esc(deviceName)}</span>
+          <span class="dg-cell" style="text-transform:none;font-weight:500;color:var(--cyan)">${esc(d.keyName || '—')}</span>
+          <span class="dg-cell"><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;background:${statusColor}22;color:${statusColor};border:1px solid ${statusColor}44">● ${status}</span></span>
+          <span class="dg-cell" style="text-transform:none;font-weight:400;font-size:12px;color:var(--text-3)">${lastSeen}</span>
+          <span class="dg-cell dg-cell--end">
+            <button class="dg-action" data-view-device-detail="${esc(d.uid)}" title="Xem chi tiết">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M21 12a9 9 0 01-18 0 9 9 0 0118 0z"/></svg>
+            </button>
+            <button class="dg-action dg-action--danger" data-ban-device="${esc(d.uid)}" title="Ban UID">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+            </button>
+          </span>
+        </div>`;
+      }).join('');
+      
+    } catch (err) {
+      console.error('Lỗi render device list:', err);
+      body.innerHTML = `<div class="dg-row" style="padding:20px;text-align:center;color:var(--text-3)">Lỗi tải dữ liệu: ${err.message}</div>`;
+    }
+  }
+
+  async function viewUIDDetail(uid) {
+    selectedUID = uid;
+    
+    try {
+      const allDevices = await KeyAPI.getAllDeviceInfo();
+      const deviceInfo = allDevices[uid];
+      const logs = await KeyAPI.getUIDLoginHistory(uid);
+      deviceLogs[uid] = logs || {};
+      
+      const panel = document.getElementById('uidDetailPanel');
+      if (panel) {
+        panel.style.display = 'block';
+        
+        const isBanned = bannedUIDs[uid]?.banned || false;
+        const isFlagged = bannedUIDs[uid]?.flagged || false;
+        
+        document.getElementById('detailUid').textContent = uid;
+        document.getElementById('detailDeviceName').textContent = deviceInfo?.device_name || '—';
+        document.getElementById('detailDeviceModel').textContent = deviceInfo?.device_model || '—';
+        document.getElementById('detailOSVersion').textContent = deviceInfo?.os_version || '—';
+        document.getElementById('detailAppName').textContent = deviceInfo?.app_name || '—';
+        document.getElementById('detailBattery').textContent = deviceInfo?.battery_level !== undefined ? `${Math.round(deviceInfo.battery_level * 100)}%` : '—';
+        document.getElementById('detailKeyId').textContent = deviceInfo?.keyName || '—';
+        document.getElementById('detailLastSeen').textContent = deviceInfo?.last_seen ? fmtDate(parseInt(deviceInfo.last_seen) * 1000) : '—';
+        
+        document.getElementById('banUidBtn').style.display = isBanned ? 'none' : 'inline-flex';
+        document.getElementById('unbanUidBtn').style.display = isBanned ? 'inline-flex' : 'none';
+        document.getElementById('flagUidBtn').textContent = isFlagged ? '🚩 Bỏ flag' : '🚩 Flag UID';
+        document.getElementById('selectedUidLabel').textContent = `Chi tiết UID: ${uid}`;
+      }
+      
+      renderUIDLogs(logs || {});
+      
+    } catch (err) {
+      console.error('Lỗi xem chi tiết UID:', err);
+    }
+  }
+
+  function renderUIDLogs(logs) {
+    const list = document.getElementById('uidLogList');
+    if (!list) return;
+    
+    const entries = Object.entries(logs).sort((a, b) => parseInt(b[0]) - parseInt(a[0]));
+    
+    if (!entries.length) {
+      list.innerHTML = `<li style="padding:16px;color:var(--text-3);text-align:center">Chưa có log nào cho UID này</li>`;
+      return;
+    }
+    
+    list.innerHTML = entries.slice(0, 50).map(([timestamp, log]) => {
+      const status = log.status === 'success' ? '✅ Thành công' : '❌ Thất bại';
+      const statusColor = log.status === 'success' ? 'var(--green)' : 'var(--red)';
+      const deviceInfo = log.device_info || {};
+      const time = fmtDate(parseInt(timestamp));
+      
+      return `
+      <li class="activity-item">
+        <div class="activity-item__dot" style="--dot:${statusColor};background:${statusColor}"></div>
+        <div class="activity-item__body">
+          <p><strong>${time}</strong> — <span style="color:${statusColor}">${status}</span></p>
+          <span style="font-size:11px;color:var(--text-3)">
+            ${deviceInfo.device_name || 'Unknown'} · ${deviceInfo.app_name || '—'} 
+            ${deviceInfo.battery_level !== undefined ? `· 🔋${Math.round(deviceInfo.battery_level * 100)}%` : ''}
+          </span>
+        </div>
+      </li>`;
+    }).join('');
+  }
+
+  // ── DEVICE MANAGER EVENTS ──────────────────────
+  document.getElementById('deviceManagerSearch')?.addEventListener('input', (e) => {
+    deviceManagerSearch = e.target.value;
+    renderDeviceList();
+  });
+
+  document.addEventListener('click', async (e) => {
+    const viewBtn = e.target.closest('[data-view-device-detail]');
+    if (viewBtn) {
+      const uid = viewBtn.dataset.viewDeviceDetail;
+      await viewUIDDetail(uid);
+      return;
+    }
+    
+    const row = e.target.closest('.dg-row[data-uid]');
+    if (row && e.target.closest('.dg-actions') === null) {
+      const uid = row.dataset.uid;
+      await viewUIDDetail(uid);
+      return;
+    }
+    
+    const banBtn = e.target.closest('[data-ban-device]');
+    if (banBtn) {
+      const uid = banBtn.dataset.banDevice;
+      const reason = prompt(`Nhập lý do ban UID "${uid}":`, 'Vi phạm điều khoản sử dụng');
+      if (reason !== null) {
+        try {
+          await KeyAPI.banUID(uid, reason);
+          await renderDeviceManager();
+          toast('success', 'Đã ban UID', `UID ${uid} đã bị ban.`);
+          if (selectedUID === uid) await viewUIDDetail(uid);
+        } catch (err) {
+          toast('danger', 'Lỗi', err.message);
+        }
+      }
+      return;
+    }
+  });
+
+  document.getElementById('banUidBtn')?.addEventListener('click', async () => {
+    if (!selectedUID) return;
+    const reason = prompt(`Nhập lý do ban UID "${selectedUID}":`, 'Vi phạm điều khoản sử dụng');
+    if (reason !== null) {
+      try {
+        await KeyAPI.banUID(selectedUID, reason);
+        await renderDeviceManager();
+        toast('success', 'Đã ban UID', `UID ${selectedUID} đã bị ban.`);
+        await viewUIDDetail(selectedUID);
+      } catch (err) {
+        toast('danger', 'Lỗi', err.message);
+      }
+    }
+  });
+
+  document.getElementById('unbanUidBtn')?.addEventListener('click', async () => {
+    if (!selectedUID) return;
+    if (!confirm(`Mở ban cho UID "${selectedUID}"?`)) return;
+    try {
+      await KeyAPI.unbanUID(selectedUID);
+      await renderDeviceManager();
+      toast('success', 'Đã mở ban', `UID ${selectedUID} đã được mở ban.`);
+      await viewUIDDetail(selectedUID);
+    } catch (err) {
+      toast('danger', 'Lỗi', err.message);
+    }
+  });
+
+  document.getElementById('flagUidBtn')?.addEventListener('click', async () => {
+    if (!selectedUID) return;
+    const isFlagged = bannedUIDs[selectedUID]?.flagged || false;
+    
+    if (isFlagged) {
+      if (!confirm(`Bỏ flag cho UID "${selectedUID}"?`)) return;
+      try {
+        await KeyAPI.unbanUID(selectedUID);
+        await renderDeviceManager();
+        toast('success', 'Đã bỏ flag', `UID ${selectedUID} đã được bỏ flag.`);
+        await viewUIDDetail(selectedUID);
+      } catch (err) {
+        toast('danger', 'Lỗi', err.message);
+      }
+    } else {
+      const reason = prompt(`Nhập lý do flag UID "${selectedUID}":`, 'Đang theo dõi');
+      if (reason !== null) {
+        try {
+          await KeyAPI.flagUID(selectedUID, reason);
+          await renderDeviceManager();
+          toast('warning', 'Đã flag UID', `UID ${selectedUID} đang được theo dõi.`);
+          await viewUIDDetail(selectedUID);
+        } catch (err) {
+          toast('danger', 'Lỗi', err.message);
+        }
+      }
+    }
+  });
+
+  document.getElementById('refreshDeviceManagerBtn')?.addEventListener('click', async () => {
+    await renderDeviceManager();
+    if (selectedUID) await viewUIDDetail(selectedUID);
+    toast('success', 'Đã làm mới', 'Dữ liệu thiết bị đã được cập nhật.');
+  });
+
+  document.getElementById('clearUidLogBtn')?.addEventListener('click', () => {
+    if (!selectedUID) return;
+    if (!confirm(`Xóa toàn bộ log cho UID "${selectedUID}"?`)) return;
+    deviceLogs[selectedUID] = {};
+    renderUIDLogs({});
+    toast('info', 'Đã xóa log', `Log của UID ${selectedUID} đã được xóa khỏi hiển thị.`);
+  });
+
+  /* ── APP & DEVICE SETTINGS ────────────────────── */
+  function renderAppDevice() {
+    renderAppDeviceStats();
+    renderAppDeviceList();
+  }
+
+  async function renderAppDeviceStats() {
+    try {
+      const allData = await KeyAPI.getAllAppAndDeviceInfo();
+      appDeviceData = allData;
+      
+      let totalAppSet = 0;
+      let totalDevices = 0;
+      let latestUid = null;
+      let latestTime = 0;
+      
+      for (const [keyId, data] of Object.entries(allData)) {
+        if (data.app_info) totalAppSet++;
+        const devices = data.device_info || {};
+        totalDevices += Object.keys(devices).length;
+        
+        for (const [uid, info] of Object.entries(devices)) {
+          if (info.last_seen && info.last_seen > latestTime) {
+            latestTime = info.last_seen;
+            latestUid = uid;
+          }
+        }
+      }
+      
+      const el = (id, val) => { const e = $(`#${id}`); if (e) e.textContent = val; };
+      el("statTotalAppSet", totalAppSet);
+      el("statTotalAppDevices", totalDevices);
+      el("navAppDeviceCount", totalDevices);
+      
+      if (latestUid) {
+        el("latestAppUid", latestUid);
+        el("latestAppUidTime", fmtDate(latestTime * 1000));
+      } else {
+        el("latestAppUid", "—");
+        el("latestAppUidTime", "Chưa có");
+      }
+      
+      const allLogs = await KeyAPI.getAllLoginLogs();
+      let failedLogs = 0;
+      const today = new Date().toDateString();
+      for (const [uid, logData] of Object.entries(allLogs || {})) {
+        for (const [timestamp, log] of Object.entries(logData || {})) {
+          if (log.status === 'failed') {
+            const logDate = new Date(parseInt(timestamp)).toDateString();
+            if (logDate === today) failedLogs++;
+          }
+        }
+      }
+      el("statAppFailedLogs", failedLogs);
+      
+    } catch (err) {
+      console.error('Lỗi load app device stats:', err);
+    }
+  }
+
+  async function renderAppDeviceList() {
+    const body = document.getElementById('appDeviceBody');
+    const empty = document.getElementById('appDeviceEmpty');
+    if (!body) return;
+    
+    try {
+      const allData = await KeyAPI.getAllAppAndDeviceInfo();
+      appDeviceData = allData;
+      
+      const search = appDeviceSearch.toLowerCase();
+      
+      let list = Object.entries(allData).map(([keyId, data]) => ({
+        keyId,
+        keyName: data.keyName || keyId,
+        app_info: data.app_info,
+        device_info: data.device_info || {},
+        deviceCount: Object.keys(data.device_info || {}).length
+      }));
+      
+      if (search) {
+        list = list.filter(d => 
+          d.keyName.toLowerCase().includes(search) ||
+          (d.app_info?.app_name || '').toLowerCase().includes(search) ||
+          (d.app_info?.bundle_id || '').toLowerCase().includes(search)
+        );
+      }
+      
+      if (empty) empty.hidden = list.length > 0;
+      
+      body.innerHTML = list.map(d => {
+        const appName = d.app_info?.app_name || '—';
+        const appVersion = d.app_info?.app_version || '—';
+        
+        return `
+        <div class="dg-row" style="grid-template-columns:1.2fr 0.8fr 0.8fr 0.8fr 0.6fr;" data-key-id="${esc(d.keyId)}">
+          <span class="dg-cell dg-id" style="text-transform:none;font-weight:600">${esc(d.keyName)}</span>
+          <span class="dg-cell" style="text-transform:none;font-weight:500;color:var(--text-1)">${esc(appName)}</span>
+          <span class="dg-cell" style="text-transform:none;font-weight:400;color:var(--text-2)">${esc(appVersion)}</span>
+          <span class="dg-cell" style="text-transform:none;font-weight:500;color:var(--cyan)">📱 ${d.deviceCount}</span>
+          <span class="dg-cell dg-cell--end">
+            <button class="dg-action" data-view-app-devices="${esc(d.keyId)}" title="Xem thiết bị">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M21 12a9 9 0 01-18 0 9 9 0 0118 0z"/></svg>
+            </button>
+            <button class="dg-action" data-set-app-from-key="${esc(d.keyId)}" title="Set APP từ key này">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+          </span>
+        </div>`;
+      }).join('');
+      
+    } catch (err) {
+      console.error('Lỗi render app device list:', err);
+      body.innerHTML = `<div class="dg-row" style="padding:20px;text-align:center;color:var(--text-3)">Lỗi tải dữ liệu: ${err.message}</div>`;
+    }
+  }
+
+  async function viewAppDevices(keyId) {
+    try {
+      const devices = await KeyAPI.getKeyDeviceInfo(keyId);
+      const keyData = await KeyAPI.getKey(keyId);
+      const keyName = keyData?.key || keyId;
+      
+      const deviceList = Object.entries(devices || {});
+      if (!deviceList.length) {
+        toast('info', 'Không có thiết bị', `Key ${keyName} chưa có thiết bị nào.`);
+        return;
+      }
+      
+      const modal = document.createElement('div');
+      modal.className = 'modal is-open';
+      modal.style.display = 'flex';
+      modal.innerHTML = `
+        <div class="modal__backdrop" data-close-modal></div>
+        <div class="modal__panel" style="max-width:600px">
+          <header class="modal__head">
+            <div>
+              <h2>📱 Thiết bị của key</h2>
+              <p><code>${esc(keyName)}</code></p>
+            </div>
+            <button class="icon-btn" data-close-modal aria-label="Đóng">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+          </header>
+          <div class="modal__body">
+            <ul style="list-style:none;padding:0;margin:0">
+              ${deviceList.map(([uid, info]) => `
+                <li style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;gap:10px;flex-wrap:wrap">
+                  <div style="display:flex;flex-direction:column;gap:2px;min-width:120px">
+                    <span style="font-family:monospace;font-size:12px;font-weight:600;color:var(--cyan)">${esc(uid)}</span>
+                    <span style="font-size:11px;color:var(--text-3)">${esc(info.device_name || 'Unknown')}</span>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--text-2)">
+                    <span>${esc(info.device_model || '—')}</span>
+                    <span>${esc(info.os_version || '—')}</span>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--text-2);text-align:right">
+                    <span>${info.battery_level !== undefined ? `🔋${Math.round(info.battery_level * 100)}%` : '—'}</span>
+                    <span style="font-size:10px;color:var(--text-3)">${info.last_seen ? fmtDate(info.last_seen * 1000) : '—'}</span>
+                  </div>
+                  <button class="dg-action dg-action--danger" data-remove-device-modal="${esc(uid)}" title="Xoá UID">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M6.5 7l1 13h9l1-13"/></svg>
+                  </button>
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+          <footer class="modal__foot">
+            <button type="button" class="btn btn--ghost" data-close-modal>Đóng</button>
+            <button type="button" class="btn btn--primary" id="copyAllDevicesBtn">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1"/></svg>
+              Sao chép danh sách
+            </button>
+          </footer>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      
+      modal.querySelector('#copyAllDevicesBtn')?.addEventListener('click', async () => {
+        const uids = deviceList.map(([uid]) => uid).join('\n');
+        if (await copyText(uids)) {
+          toast('success', 'Đã sao chép', `${deviceList.length} UID vào clipboard.`);
+        }
+      });
+      
+      modal.querySelectorAll('[data-remove-device-modal]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const uid = btn.dataset.removeDeviceModal;
+          if (!confirm(`Xoá UID "${uid}" khỏi key?`)) return;
+          try {
+            const currentDevices = await KeyAPI.getKeyDeviceInfo(keyId);
+            const newDevices = { ...currentDevices };
+            delete newDevices[uid];
+            await KeyAPI.updateKey(keyId, { device_info: newDevices });
+            modal.remove();
+            toast('success', 'Đã xoá UID', `UID ${uid} đã được xoá.`);
+            renderAppDevice();
+          } catch (err) {
+            toast('danger', 'Lỗi', err.message);
+          }
+        });
+      });
+      
+      modal.querySelectorAll('[data-close-modal]').forEach(el => {
+        el.addEventListener('click', () => modal.remove());
+      });
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+      });
+      
+    } catch (err) {
+      toast('danger', 'Lỗi', err.message);
+    }
+  }
+
+  // ── APP & DEVICE EVENTS ────────────────────────
+  document.getElementById('appDeviceSearch')?.addEventListener('input', (e) => {
+    appDeviceSearch = e.target.value;
+    renderAppDeviceList();
+  });
+
+  document.addEventListener('click', (e) => {
+    const viewBtn = e.target.closest('[data-view-app-devices]');
+    if (viewBtn) {
+      const keyId = viewBtn.dataset.viewAppDevices;
+      viewAppDevices(keyId);
+      return;
+    }
+    
+    const setBtn = e.target.closest('[data-set-app-from-key]');
+    if (setBtn) {
+      const keyId = setBtn.dataset.setAppFromKey;
+      const keyData = keys[keyId];
+      if (keyData) {
+        document.getElementById('appKeyInput').value = keyData.key || keyId;
+        toast('info', 'Đã điền key', `Key ${keyData.key || keyId} đã được điền vào form.`);
+      } else {
+        toast('warning', 'Không tìm thấy key', `Key ${keyId} không tồn tại trong hệ thống.`);
+      }
+      return;
+    }
+  });
+
+  // Form SET APP INFO
+  const appInfoForm = document.getElementById('appInfoForm');
+  if (appInfoForm) {
+    appInfoForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const keyVal = document.getElementById('appKeyInput').value.trim();
+      const appName = document.getElementById('appNameInput').value.trim();
+      const appVersion = document.getElementById('appVersionInput').value.trim();
+      const bundleId = document.getElementById('appBundleInput').value.trim();
+      const btn = document.getElementById('appInfoSubmit');
+      
+      if (!keyVal) {
+        toast('warning', 'Thiếu key', 'Vui lòng nhập key cần set APP.');
+        return;
+      }
+      if (!appName) {
+        toast('warning', 'Thiếu tên APP', 'Vui lòng nhập tên ứng dụng.');
+        return;
+      }
+      
+      btn.classList.add('is-loading');
+      btn.disabled = true;
+      
+      try {
+        let foundId = null;
+        for (const [id, data] of Object.entries(keys)) {
+          if (data.key === keyVal || id === keyVal) {
+            foundId = id;
+            break;
+          }
+        }
+        
+        if (!foundId) {
+          toast('danger', 'Không tìm thấy key', `Key "${keyVal}" không tồn tại.`);
+          btn.classList.remove('is-loading');
+          btn.disabled = false;
+          return;
+        }
+        
+        const appInfo = {
+          app_name: appName,
+          app_version: appVersion || '1.0',
+          bundle_id: bundleId || null
+        };
+        
+        await KeyAPI.updateAppInfo(foundId, appInfo);
+        renderAppDevice();
+        
+        document.getElementById('appKeyInput').value = '';
+        document.getElementById('appNameInput').value = '';
+        document.getElementById('appVersionInput').value = '';
+        document.getElementById('appBundleInput').value = '';
+        
+        toast('success', 'Đã lưu APP Info', `APP "${appName}" đã được set cho key ${keyVal}.`);
+      } catch (err) {
+        toast('danger', 'Lỗi', err.message);
+      } finally {
+        btn.classList.remove('is-loading');
+        btn.disabled = false;
+      }
+    });
+  }
+
+  // Form SET DEVICE INFO
+  const deviceInfoForm = document.getElementById('deviceInfoForm');
+  if (deviceInfoForm) {
+    deviceInfoForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const keyVal = document.getElementById('deviceKeyInput').value.trim();
+      const uid = document.getElementById('deviceUidInput').value.trim();
+      const deviceName = document.getElementById('deviceNameInput').value.trim();
+      const deviceModel = document.getElementById('deviceModelInput').value.trim();
+      const osVersion = document.getElementById('deviceOSInput').value.trim();
+      const batteryLevel = parseFloat(document.getElementById('deviceBatteryInput').value);
+      const btn = document.getElementById('deviceInfoSubmit');
+      
+      if (!keyVal) {
+        toast('warning', 'Thiếu key', 'Vui lòng nhập key.');
+        return;
+      }
+      if (!uid) {
+        toast('warning', 'Thiếu UID', 'Vui lòng nhập UID thiết bị.');
+        return;
+      }
+      
+      btn.classList.add('is-loading');
+      btn.disabled = true;
+      
+      try {
+        let foundId = null;
+        for (const [id, data] of Object.entries(keys)) {
+          if (data.key === keyVal || id === keyVal) {
+            foundId = id;
+            break;
+          }
+        }
+        
+        if (!foundId) {
+          toast('danger', 'Không tìm thấy key', `Key "${keyVal}" không tồn tại.`);
+          btn.classList.remove('is-loading');
+          btn.disabled = false;
+          return;
+        }
+        
+        const deviceInfo = {
+          device_name: deviceName || 'Unknown',
+          device_model: deviceModel || 'Unknown',
+          os_version: osVersion || 'Unknown',
+          battery_level: isNaN(batteryLevel) ? -1 : batteryLevel,
+          last_seen: Date.now() / 1000
+        };
+        
+        await KeyAPI.updateDeviceInfo(foundId, uid, deviceInfo);
+        renderAppDevice();
+        
+        document.getElementById('deviceKeyInput').value = '';
+        document.getElementById('deviceUidInput').value = '';
+        document.getElementById('deviceNameInput').value = '';
+        document.getElementById('deviceModelInput').value = '';
+        document.getElementById('deviceOSInput').value = '';
+        document.getElementById('deviceBatteryInput').value = '';
+        
+        toast('success', 'Đã lưu Device Info', `Thiết bị "${deviceName || uid}" đã được set cho key ${keyVal}.`);
+      } catch (err) {
+        toast('danger', 'Lỗi', err.message);
+      } finally {
+        btn.classList.remove('is-loading');
+        btn.disabled = false;
+      }
+    });
+  }
+
+  document.getElementById('refreshAppDeviceBtn')?.addEventListener('click', () => {
+    renderAppDevice();
+    toast('success', 'Đã làm mới', 'Dữ liệu APP & Device đã được cập nhật.');
+  });
+
   /* ── DELEGATED EVENTS ────────────────────────── */
   document.addEventListener("click", async (e) => {
     const copyEl = e.target.closest("[data-copy]");
@@ -1383,5 +2055,11 @@
 
   /* ── INIT ──────────────────────────────────── */
   loadAll();
-  setInterval(() => { renderStats(); renderTable(); renderDevices(); }, 60000);
+  setInterval(() => { 
+    renderStats(); 
+    renderTable(); 
+    renderDevices(); 
+    renderDeviceManager();
+    renderAppDevice();
+  }, 60000);
 })();
