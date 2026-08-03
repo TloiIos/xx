@@ -4,781 +4,1033 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>KeyVault — Quản lý Key</title>
-  <meta name="description" content="KeyVault — Hệ thống quản lý key premium" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/main.css" />
-  <link rel="stylesheet" href="css/components.css" />
-  <link rel="stylesheet" href="css/keymanager.css" />
-  
   <style>
-    /* Fix cho các nút action */
-    .dg-actions {
-      display: flex !important;
-      gap: 4px !important;
-      flex-wrap: wrap !important;
-      justify-content: flex-end !important;
-      align-items: center !important;
+    /* ── RESET ── */
+    * { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg-1: #0a0a12;
+      --bg-2: #14141f;
+      --bg-3: #1e1e2e;
+      --border: #2a2a3e;
+      --text-1: #e8e8f0;
+      --text-2: #a8a8c0;
+      --text-3: #686880;
+      --cyan: #22d3ee;
+      --purple: #818cf8;
+      --pink: #e879f9;
+      --green: #4ade80;
+      --red: #f87171;
+      --amber: #fbbf24;
+      --green-alpha: rgba(74,222,128,0.15);
+      --red-alpha: rgba(248,113,113,0.15);
+      --amber-alpha: rgba(251,191,36,0.15);
     }
-    .dg-actions .dg-action {
-      padding: 4px 6px !important;
-      min-width: 28px !important;
-      height: 28px !important;
-      display: inline-flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      border-radius: 4px !important;
-      background: var(--bg-2) !important;
-      border: 1px solid var(--border) !important;
-      transition: all 0.2s !important;
-      cursor: pointer !important;
+    [data-theme="light"] {
+      --bg-1: #f0f0f5;
+      --bg-2: #e4e4ec;
+      --bg-3: #d4d4e0;
+      --border: #c0c0d0;
+      --text-1: #1a1a2a;
+      --text-2: #4a4a5a;
+      --text-3: #7a7a8a;
     }
-    .dg-actions .dg-action:hover {
-      background: var(--bg-3) !important;
-      border-color: var(--text-3) !important;
-    }
-    .dg-actions .dg-action--danger:hover {
-      background: var(--red) !important;
-      border-color: var(--red) !important;
-      color: #fff !important;
-    }
-    .dg-actions .dg-action svg {
-      width: 16px !important;
-      height: 16px !important;
-      display: block !important;
-    }
-    
-    /* Device badge */
-    .device-badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: 500;
-      background: var(--bg-2);
-      border: 1px solid var(--border);
-    }
-    .device-badge--full {
-      background: var(--red-alpha);
-      border-color: var(--red);
-      color: var(--red);
-    }
-    
-    /* UID mới nhất */
-    .latest-uid {
-      display: block;
-      font-size: 10px;
-      color: var(--text-3);
-      margin-top: 2px;
-      font-family: monospace;
-    }
-    .latest-uid .uid-star {
-      color: var(--amber);
-    }
-    
-    /* Key code */
-    .key-code {
-      font-family: 'Space Grotesk', monospace;
-      font-weight: 600;
-      font-size: 13px;
-      cursor: pointer;
-      transition: color 0.2s;
-      background: var(--bg-2);
-      padding: 2px 8px;
-      border-radius: 4px;
-      display: inline-block;
-    }
-    .key-code:hover {
-      color: var(--cyan);
-    }
-    
-    /* Check card */
-    .check-card {
-      padding: 20px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      margin-top: 16px;
-    }
-    .check-card--valid {
-      border-color: var(--green);
-      background: var(--green-alpha);
-    }
-    .check-card--expired {
-      border-color: var(--amber);
-      background: var(--amber-alpha);
-    }
-    .check-card--invalid {
-      border-color: var(--red);
-      background: var(--red-alpha);
-    }
-    .check-card__icon {
-      font-size: 32px;
-      text-align: center;
-    }
-    .check-card h3 {
-      text-align: center;
-      margin: 8px 0 12px;
-    }
-    .check-card__meta {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-    .check-card__meta li {
-      display: flex;
-      justify-content: space-between;
-      padding: 6px 0;
-      border-bottom: 1px solid var(--border);
-      font-size: 13px;
-    }
-    .check-card__meta li:last-child {
-      border-bottom: none;
-    }
-    .check-card__meta li span {
-      color: var(--text-3);
-    }
-    .check-card__meta li b {
-      font-weight: 600;
-    }
-    .check-card__meta li code {
-      font-family: 'Space Grotesk', monospace;
-      font-size: 12px;
-    }
-
-    /* Nav item với UID */
-    .nav-item[data-page="uid"] svg {
-      transform: scale(1.1);
-    }
-
-    /* UID List */
-    .uid-list {
-      display: grid;
-      gap: 12px;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    }
-    .uid-card {
-      background: var(--bg-2);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px;
-      transition: all 0.2s;
-    }
-    .uid-card:hover {
-      border-color: var(--text-3);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    .uid-card__header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-    .uid-card__key {
-      font-family: 'Space Grotesk', monospace;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-1);
-    }
-    .uid-card__uid {
-      font-family: monospace;
-      font-size: 14px;
-      color: var(--text-1);
-      word-break: break-all;
+    body {
+      font-family: 'Inter', sans-serif;
       background: var(--bg-1);
-      padding: 6px 10px;
-      border-radius: 6px;
-      margin: 4px 0;
-    }
-    .uid-card__meta {
+      color: var(--text-1);
+      min-height: 100vh;
       display: flex;
-      gap: 16px;
-      font-size: 12px;
-      color: var(--text-3);
-      flex-wrap: wrap;
     }
-    .uid-card__meta span {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .uid-badge {
-      display: inline-block;
-      padding: 2px 10px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 600;
-    }
-    .uid-badge--active {
-      background: var(--green-alpha);
-      color: var(--green);
-    }
-    .uid-badge--inactive {
-      background: var(--amber-alpha);
-      color: var(--amber);
-    }
+    a { color: inherit; text-decoration: none; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; color: inherit; }
+    input, select { font-family: inherit; }
 
-    /* Status badge */
+    /* ── SHELL ── */
+    .shell { display:flex; width:100%; min-height:100vh; }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width:240px;
+      background: var(--bg-2);
+      border-right:1px solid var(--border);
+      padding:16px;
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+      flex-shrink:0;
+      position:sticky;
+      top:0;
+      height:100vh;
+      overflow-y:auto;
+    }
+    .sidebar__brand { display:flex; align-items:center; gap:10px; font-weight:700; font-size:18px; }
+    .brand-mark svg { width:28px; height:28px; }
+    .sidebar__nav { display:flex; flex-direction:column; gap:4px; flex:1; }
+    .nav-label { font-size:11px; text-transform:uppercase; color:var(--text-3); letter-spacing:1px; padding:8px 0 4px; }
+    .nav-item {
+      display:flex; align-items:center; gap:10px;
+      padding:8px 12px; border-radius:8px;
+      color:var(--text-2); transition:all 0.2s;
+      font-size:14px; font-weight:500;
+    }
+    .nav-item:hover { background:var(--bg-3); color:var(--text-1); }
+    .nav-item.is-active { background:var(--bg-3); color:var(--cyan); }
+    .nav-item svg { width:20px; height:20px; flex-shrink:0; }
+    .nav-count {
+      margin-left:auto;
+      background:var(--bg-3);
+      padding:0 8px;
+      border-radius:10px;
+      font-size:11px;
+      font-weight:600;
+      color:var(--text-2);
+    }
+    .nav-count--pink { color:var(--pink); }
+
+    .sidebar__footer { border-top:1px solid var(--border); padding-top:12px; }
+    .storage-widget__head { display:flex; justify-content:space-between; font-size:13px; color:var(--text-2); }
+    .storage-widget__bar { height:4px; background:var(--bg-3); border-radius:4px; margin:6px 0; overflow:hidden; }
+    .storage-widget__bar i { display:block; height:100%; background:linear-gradient(90deg,var(--cyan),var(--purple)); width:0%; transition:width 0.5s; }
+    .storage-widget__pct { font-weight:600; }
+    #activeSummary { font-size:12px; color:var(--text-3); }
+    .sidebar__user { display:flex; align-items:center; gap:10px; margin-top:8px; }
+    .sidebar__user-meta { font-size:13px; }
+    .sidebar__user-meta span { font-size:12px; color:var(--text-3); display:block; }
+
+    /* ── MAIN ── */
+    .main { flex:1; min-width:0; display:flex; flex-direction:column; }
+    .topbar {
+      display:flex; align-items:center; gap:12px;
+      padding:12px 24px;
+      border-bottom:1px solid var(--border);
+      background:var(--bg-1);
+      position:sticky; top:0; z-index:10;
+      flex-wrap:wrap;
+    }
+    .topbar__search {
+      flex:1; min-width:200px;
+      display:flex; align-items:center; gap:8px;
+      padding:6px 14px;
+      background:var(--bg-2);
+      border:1px solid var(--border);
+      border-radius:8px;
+      color:var(--text-2);
+      font-size:14px;
+      transition:all 0.2s;
+    }
+    .topbar__search:hover { border-color:var(--text-3); }
+    .topbar__search svg { width:18px; height:18px; }
+    .topbar__search kbd { font-size:11px; color:var(--text-3); margin-left:auto; background:var(--bg-3); padding:0 6px; border-radius:4px; }
+    .topbar__right { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .topbar__clock { text-align:right; line-height:1.2; }
+    .clock-time { font-size:14px; font-weight:600; display:block; }
+    .clock-date { font-size:11px; color:var(--text-3); }
+    .icon-btn {
+      width:36px; height:36px;
+      border-radius:8px;
+      display:flex; align-items:center; justify-content:center;
+      transition:all 0.2s;
+      background:transparent;
+    }
+    .icon-btn:hover { background:var(--bg-2); }
+    .icon-btn svg { width:20px; height:20px; }
+    .btn {
+      display:inline-flex; align-items:center; gap:6px;
+      padding:8px 16px;
+      border-radius:8px;
+      font-weight:600; font-size:14px;
+      transition:all 0.2s;
+      background:var(--bg-2);
+      border:1px solid var(--border);
+    }
+    .btn:hover { background:var(--bg-3); }
+    .btn--primary { background:var(--cyan); color:#0a0a12; border-color:var(--cyan); }
+    .btn--primary:hover { opacity:0.8; }
+    .btn--danger { background:var(--red); color:#fff; border-color:var(--red); }
+    .btn--danger:hover { opacity:0.8; }
+    .btn--ghost { background:transparent; border-color:transparent; }
+    .btn--ghost:hover { background:var(--bg-2); }
+    .btn--sm { padding:4px 12px; font-size:13px; }
+    .btn__spinner { display:none; width:16px; height:16px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin 0.6s linear infinite; }
+    .is-loading .btn__spinner { display:inline-block; }
+    .is-loading .btn__label { display:none; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    .content { padding:24px; flex:1; }
+    .page { display:none; }
+    .page.is-active { display:block; }
+
+    /* ── PAGE HEAD ── */
+    .page-head { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom:24px; }
+    .page-head__eyebrow { font-size:13px; color:var(--text-3); }
+    .page-head__title { font-size:28px; font-weight:800; }
+    .text-gradient { background:linear-gradient(135deg,var(--cyan),var(--purple),var(--pink)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .page-head__sub { font-size:14px; color:var(--text-2); }
+    .page-head__actions { display:flex; gap:8px; flex-wrap:wrap; }
+
+    /* ── STATS ── */
+    .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; margin-bottom:24px; }
+    .stat-card {
+      background:var(--bg-2);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:16px 20px;
+      position:relative;
+      overflow:hidden;
+    }
+    .stat-card__glow { display:none; }
+    .stat-card__icon { width:36px; height:36px; border-radius:8px; background:var(--bg-3); display:flex; align-items:center; justify-content:center; margin-bottom:8px; }
+    .stat-card__icon svg { width:20px; height:20px; }
+    .stat-card__label { font-size:13px; color:var(--text-2); }
+    .stat-card__value { font-size:28px; font-weight:800; }
+    .stat-card footer { font-size:12px; color:var(--text-3); margin-top:4px; }
+    .status-pip { display:inline-block; width:6px; height:6px; border-radius:50; margin-right:4px; }
+    .status-pip--live { background:var(--green); }
+    .status-pip--warn { background:var(--amber); }
+
+    /* ── PANEL ── */
+    .panel {
+      background:var(--bg-2);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:20px;
+      margin-bottom:20px;
+    }
+    .panel__head { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+    .panel__head h2 { font-size:16px; font-weight:600; }
+    .panel__head p { font-size:13px; color:var(--text-3); }
+    .link-btn { color:var(--cyan); font-weight:600; font-size:14px; }
+    .link-btn:hover { text-decoration:underline; }
+
+    /* ── RECENT ── */
+    .activity-feed { list-style:none; }
+    .activity-item {
+      display:flex; align-items:center; gap:12px;
+      padding:10px 0;
+      border-bottom:1px solid var(--border);
+    }
+    .activity-item:last-child { border-bottom:none; }
+    .activity-item__dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; background:var(--text-3); }
+    .activity-item__body { flex:1; min-width:0; }
+    .activity-item__body p { font-weight:500; word-break:break-all; }
+    .activity-item__body span { font-size:12px; color:var(--text-3); }
+
+    /* ── TABLE TOOLS ── */
+    .table-tools { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:12px 0; }
+    .field { display:flex; align-items:center; gap:6px; background:var(--bg-3); border:1px solid var(--border); border-radius:8px; padding:0 10px; }
+    .field svg { width:16px; height:16px; color:var(--text-3); }
+    .field input { background:none; border:none; padding:6px 0; color:var(--text-1); outline:none; width:180px; font-size:14px; }
+    .field input::placeholder { color:var(--text-3); }
+    .select-wrap { position:relative; }
+    .select-wrap select {
+      appearance:none;
+      background:var(--bg-3);
+      border:1px solid var(--border);
+      border-radius:8px;
+      padding:6px 30px 6px 12px;
+      color:var(--text-1);
+      font-size:14px;
+      cursor:pointer;
+      outline:none;
+    }
+    .select-wrap select:focus { border-color:var(--cyan); }
+
+    /* ── DATAGRID ── */
+    .datagrid { overflow-x:auto; }
+    .datagrid__head {
+      display:grid;
+      padding:8px 0;
+      font-weight:600;
+      font-size:12px;
+      color:var(--text-3);
+      border-bottom:2px solid var(--border);
+      gap:8px;
+    }
+    .datagrid__head--keys { grid-template-columns:1.4fr 0.8fr 1fr 1fr 0.7fr 0.8fr 0.7fr; }
+    .datagrid__head--uid { grid-template-columns:1.5fr 1fr 0.8fr 0.7fr 0.6fr; }
+    .dg-cell {
+      padding:4px 6px;
+      display:flex;
+      align-items:center;
+      font-size:13px;
+      word-break:break-all;
+    }
+    .dg-cell--end { justify-content:flex-end; }
+    .dg-cell--sortable { cursor:pointer; user-select:none; gap:4px; background:none; border:none; color:var(--text-3); font-weight:600; font-size:12px; padding:4px 6px; }
+    .dg-cell--sortable:hover { color:var(--text-1); }
+    .sort-arrow { font-size:10px; }
+    .dg-row {
+      display:grid;
+      padding:8px 0;
+      border-bottom:1px solid var(--border);
+      gap:8px;
+      align-items:center;
+    }
+    .dg-row--keys { grid-template-columns:1.4fr 0.8fr 1fr 1fr 0.7fr 0.8fr 0.7fr; }
+    .dg-row--uid { grid-template-columns:1.5fr 1fr 0.8fr 0.7fr 0.6fr; }
+    .dg-row:hover { background:var(--bg-3); }
+    .dg-actions { display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end; }
+    .dg-action {
+      padding:4px 6px;
+      border-radius:4px;
+      background:var(--bg-3);
+      border:1px solid var(--border);
+      transition:all 0.2s;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:28px;
+      height:28px;
+    }
+    .dg-action:hover { background:var(--bg-1); border-color:var(--text-3); }
+    .dg-action--danger:hover { background:var(--red); border-color:var(--red); color:#fff; }
+    .dg-action svg { width:16px; height:16px; display:block; }
+    .dg-skeleton .skel { display:block; height:12px; background:var(--bg-3); border-radius:4px; animation:pulse 1.5s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+
+    .datagrid__empty {
+      text-align:center;
+      padding:40px 20px;
+      color:var(--text-3);
+    }
+    .datagrid__empty svg { width:48px; height:48px; margin-bottom:12px; opacity:0.5; }
+    .datagrid__empty strong { display:block; font-size:16px; color:var(--text-2); }
+    .datagrid__empty p { font-size:14px; }
+
+    .datagrid__footer {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding-top:12px;
+      border-top:1px solid var(--border);
+      font-size:14px;
+      color:var(--text-3);
+      flex-wrap:wrap;
+      gap:8px;
+    }
+    .pagination { display:flex; gap:4px; }
+    .page-btn {
+      padding:4px 10px;
+      border-radius:4px;
+      border:1px solid var(--border);
+      background:transparent;
+      color:var(--text-2);
+      font-size:13px;
+      transition:all 0.2s;
+    }
+    .page-btn:hover:not(:disabled) { background:var(--bg-3); }
+    .page-btn.is-active { background:var(--cyan); color:#0a0a12; border-color:var(--cyan); }
+    .page-btn:disabled { opacity:0.3; cursor:not-allowed; }
+
+    /* ── BADGE ── */
     .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 10px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 600;
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      padding:2px 10px;
+      border-radius:12px;
+      font-size:11px;
+      font-weight:600;
     }
-    .status-badge--completed {
-      background: var(--green-alpha);
-      color: var(--green);
+    .status-badge--completed { background:var(--green-alpha); color:var(--green); }
+    .status-badge--pending { background:var(--amber-alpha); color:var(--amber); }
+    .status-badge--failed { background:var(--red-alpha); color:var(--red); }
+    .status-badge i { display:inline-block; width:6px; height:6px; border-radius:50%; background:currentColor; }
+
+    .device-badge {
+      display:inline-block;
+      padding:2px 8px;
+      border-radius:12px;
+      font-size:12px;
+      font-weight:500;
+      background:var(--bg-3);
+      border:1px solid var(--border);
     }
-    .status-badge--pending {
-      background: var(--amber-alpha);
-      color: var(--amber);
+    .device-badge--full { background:var(--red-alpha); border-color:var(--red); color:var(--red); }
+
+    .key-code {
+      font-family:'Space Grotesk',monospace;
+      font-weight:600;
+      font-size:13px;
+      cursor:pointer;
+      background:var(--bg-3);
+      padding:2px 8px;
+      border-radius:4px;
+      display:inline-block;
+      transition:color 0.2s;
     }
-    .status-badge--failed {
-      background: var(--red-alpha);
-      color: var(--red);
+    .key-code:hover { color:var(--cyan); }
+    .key-code--lg { font-size:16px; padding:4px 12px; }
+
+    /* ── CHECK ── */
+    .check-form { display:flex; gap:12px; flex-wrap:wrap; }
+    .check-form__field { flex:1; min-width:200px; }
+    .float-field { position:relative; }
+    .float-field input {
+      width:100%;
+      padding:10px 12px;
+      background:var(--bg-3);
+      border:1px solid var(--border);
+      border-radius:8px;
+      color:var(--text-1);
+      font-size:14px;
+      outline:none;
+      transition:border-color 0.2s;
     }
-    .status-badge i {
-      display: inline-block;
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: currentColor;
+    .float-field input:focus { border-color:var(--cyan); }
+    .float-field label {
+      position:absolute;
+      left:12px;
+      top:50%;
+      transform:translateY(-50%);
+      color:var(--text-3);
+      font-size:14px;
+      transition:all 0.2s;
+      pointer-events:none;
     }
+    .float-field input:focus ~ label,
+    .float-field input:not(:placeholder-shown) ~ label {
+      top:-8px;
+      left:10px;
+      font-size:11px;
+      background:var(--bg-2);
+      padding:0 4px;
+      color:var(--cyan);
+    }
+    .float-field .field-error { display:none; font-size:12px; color:var(--red); margin-top:4px; }
+    .float-field.has-error .field-error { display:block; }
+    .float-field.has-error input { border-color:var(--red); }
+
+    .check-card {
+      padding:20px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      margin-top:16px;
+    }
+    .check-card--valid { border-color:var(--green); background:var(--green-alpha); }
+    .check-card--expired { border-color:var(--amber); background:var(--amber-alpha); }
+    .check-card--invalid { border-color:var(--red); background:var(--red-alpha); }
+    .check-card__icon { font-size:32px; text-align:center; }
+    .check-card h3 { text-align:center; margin:8px 0 12px; }
+    .check-card__meta { list-style:none; padding:0; margin:0; }
+    .check-card__meta li {
+      display:flex;
+      justify-content:space-between;
+      padding:6px 0;
+      border-bottom:1px solid var(--border);
+      font-size:13px;
+    }
+    .check-card__meta li:last-child { border-bottom:none; }
+    .check-card__meta li span { color:var(--text-3); }
+    .check-card__meta li b { font-weight:600; }
+
+    /* ── PKG GRID ── */
+    .pkg-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:16px; }
+    .pkg-card {
+      background:var(--bg-2);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:16px;
+    }
+    .pkg-card__head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+    .pkg-card__icon svg { width:28px; height:28px; color:var(--cyan); }
+    .pkg-card__name { font-size:16px; font-weight:600; }
+    .pkg-card__price { font-size:14px; color:var(--text-2); }
+    .pkg-card__meta { list-style:none; padding:0; margin:8px 0; }
+    .pkg-card__meta li { display:flex; justify-content:space-between; padding:4px 0; font-size:13px; border-bottom:1px solid var(--border); }
+    .pkg-card__meta li span { color:var(--text-3); }
+    .pkg-card__cta { width:100%; justify-content:center; margin-top:8px; }
+
+    /* ── MODAL ── */
+    .modal {
+      position:fixed;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:1000;
+      padding:20px;
+      background:rgba(0,0,0,0.6);
+      backdrop-filter:blur(4px);
+    }
+    .modal[hidden] { display:none; }
+    .modal__backdrop { position:absolute; inset:0; }
+    .modal__panel {
+      position:relative;
+      background:var(--bg-2);
+      border:1px solid var(--border);
+      border-radius:16px;
+      max-width:600px;
+      width:100%;
+      max-height:90vh;
+      overflow-y:auto;
+      padding:24px;
+    }
+    .modal__head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:16px; }
+    .modal__head h2 { font-size:20px; font-weight:700; }
+    .modal__head p { font-size:14px; color:var(--text-3); }
+    .modal__body { padding:0; }
+    .modal__foot { display:flex; justify-content:flex-end; gap:8px; padding-top:16px; border-top:1px solid var(--border); margin-top:16px; }
+
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+    .form-row--single { grid-template-columns:1fr; }
+    .form-hint { font-size:12px; color:var(--text-3); padding:8px 0; }
+
+    .key-result-list { display:flex; flex-direction:column; gap:6px; max-height:300px; overflow-y:auto; padding:8px; background:var(--bg-3); border-radius:8px; }
+
+    /* ── TOAST ── */
+    .toast-stack {
+      position:fixed;
+      bottom:20px;
+      right:20px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      z-index:9999;
+      max-width:400px;
+      width:100%;
+    }
+    .toast {
+      display:flex;
+      align-items:flex-start;
+      gap:12px;
+      padding:12px 16px;
+      background:var(--bg-2);
+      border:1px solid var(--border);
+      border-radius:8px;
+      box-shadow:0 8px 32px rgba(0,0,0,0.4);
+      animation:slideIn 0.3s ease;
+      position:relative;
+      overflow:hidden;
+    }
+    .toast.is-leaving { animation:slideOut 0.3s ease forwards; }
+    @keyframes slideIn { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
+    @keyframes slideOut { to { transform:translateX(100%); opacity:0; } }
+    .toast__icon svg { width:24px; height:24px; flex-shrink:0; }
+    .toast__body { flex:1; font-size:14px; }
+    .toast__body strong { display:block; }
+    .toast__body p { font-size:13px; color:var(--text-2); margin-top:2px; }
+    .toast__close { background:none; border:none; color:var(--text-3); font-size:16px; cursor:pointer; padding:4px; }
+    .toast__close:hover { color:var(--text-1); }
+    .toast__progress {
+      position:absolute;
+      bottom:0;
+      left:0;
+      height:2px;
+      background:var(--cyan);
+      animation:progress linear forwards;
+    }
+    @keyframes progress { from { width:100%; } to { width:0%; } }
+    .toast--success .toast__progress { background:var(--green); }
+    .toast--danger .toast__progress { background:var(--red); }
+    .toast--warning .toast__progress { background:var(--amber); }
+
+    /* ── RESPONSIVE ── */
+    @media(max-width:768px) {
+      .sidebar { position:fixed; left:-280px; top:0; z-index:20; transition:left 0.3s; height:100vh; }
+      .sidebar.is-open { left:0; }
+      .sidebar-open .sidebar { left:0; }
+      .topbar { padding:8px 12px; }
+      .topbar__menu { display:flex !important; }
+      .content { padding:12px; }
+      .datagrid__head--keys { grid-template-columns:1fr 0.6fr 0.8fr 0.8fr 0.5fr 0.6fr 0.5fr; font-size:10px; }
+      .dg-row--keys { grid-template-columns:1fr 0.6fr 0.8fr 0.8fr 0.5fr 0.6fr 0.5fr; }
+      .stats-grid { grid-template-columns:1fr 1fr; }
+      .form-row { grid-template-columns:1fr; }
+      .page-head { flex-direction:column; }
+      .table-tools { flex-direction:column; align-items:stretch; }
+      .field input { width:100%; }
+    }
+    .topbar__menu { display:none; }
   </style>
 </head>
 <body>
 
-  <!-- ═══════════ BACKGROUND ═══════════ -->
-  <div class="bg-stage" aria-hidden="true">
-    <div class="bg-aurora"></div>
-    <div class="bg-blob bg-blob--cyan"></div>
-    <div class="bg-blob bg-blob--purple"></div>
-    <div class="bg-blob bg-blob--pink"></div>
-    <div class="bg-grid"></div>
-    <canvas id="particles"></canvas>
-    <div class="bg-noise"></div>
-    <div class="bg-vignette"></div>
-  </div>
+<div class="shell">
 
-  <div class="cursor-glow" aria-hidden="true"></div>
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar__brand">
+      <span class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M14 7a5 5 0 11-4.9 6L3 19v2h4v-2h2v-2h2l1.1-1.1A5 5 0 0114 7z" stroke="#22d3ee" stroke-width="1.6" stroke-linejoin="round"/><circle cx="15.5" cy="10.5" r="1.5" fill="#22d3ee"/></svg>
+      </span>
+      <span>KeyVault</span>
+    </div>
 
-  <div class="shell">
+    <nav class="sidebar__nav">
+      <span class="nav-label">Quản lý</span>
+      <a class="nav-item is-active" data-page="dashboard">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>
+        <span>Tổng quan</span>
+      </a>
+      <a class="nav-item" data-page="keys">
+        <svg viewBox="0 0 24 24"><path d="M14 7a5 5 0 11-4.9 6L3 19v2h4v-2h2v-2h2l1.1-1.1A5 5 0 0114 7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="15.5" cy="10.5" r="1.5"/></svg>
+        <span>Danh sách Key</span>
+        <span class="nav-count" id="navKeyCount">0</span>
+      </a>
+      <a class="nav-item" data-page="uid">
+        <svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>
+        <span>Quản lý UID</span>
+        <span class="nav-count nav-count--pink" id="navUIDCount">0</span>
+      </a>
+      <a class="nav-item" data-page="packages">
+        <svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7l9-5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 7l9 5 9-5M12 12v10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        <span>Gói Key</span>
+        <span class="nav-count nav-count--pink" id="navPkgCount">0</span>
+      </a>
+      <a class="nav-item" data-page="check">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 12.5l2.7 2.7L16 9.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Kiểm tra Key</span>
+      </a>
 
-    <!-- ═══════════ SIDEBAR ═══════════ -->
-    <aside class="sidebar" id="sidebar">
-      <div class="sidebar__brand">
-        <div class="brand-mark">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M14 7a5 5 0 11-4.9 6L3 19v2h4v-2h2v-2h2l1.1-1.1A5 5 0 0114 7z" stroke="url(#brandGrad)" stroke-width="1.6" stroke-linejoin="round"/><circle cx="15.5" cy="10.5" r="1.5" fill="url(#brandGrad)"/><defs><linearGradient id="brandGrad" x1="2" y1="2" x2="22" y2="22"><stop stop-color="#22d3ee"/><stop offset=".5" stop-color="#818cf8"/><stop offset="1" stop-color="#e879f9"/></linearGradient></defs></svg>
+      <span class="nav-label">Hệ thống</span>
+      <a class="nav-item" id="navRefresh">
+        <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-2.6-6.3M21 4v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Làm mới</span>
+      </a>
+    </nav>
+
+    <div class="sidebar__footer">
+      <div class="storage-widget">
+        <div class="storage-widget__head">
+          <span>Key đang hoạt động</span>
+          <span class="storage-widget__pct" id="activePct">0%</span>
         </div>
-        <span class="brand-name">KeyVault</span>
-        <button class="sidebar__collapse" id="sidebarCollapse" title="Thu gọn" aria-label="Thu gọn sidebar">
-          <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
+        <div class="storage-widget__bar"><i id="activeBar" style="--w:0%;width:0%"></i></div>
+        <p id="activeSummary">0 / 0 key còn hạn</p>
       </div>
-
-      <nav class="sidebar__nav">
-        <span class="nav-label">Quản lý</span>
-        <a class="nav-item is-active" href="#" data-page="dashboard">
-          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>
-          <span>Tổng quan</span>
-        </a>
-        <a class="nav-item" href="#" data-page="keys">
-          <svg viewBox="0 0 24 24"><path d="M14 7a5 5 0 11-4.9 6L3 19v2h4v-2h2v-2h2l1.1-1.1A5 5 0 0114 7z" stroke-linejoin="round"/><circle cx="15.5" cy="10.5" r="1.5"/></svg>
-          <span>Danh sách Key</span>
-          <span class="nav-count" id="navKeyCount">0</span>
-        </a>
-        <a class="nav-item" href="#" data-page="uid">
-          <svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>
-          <span>Quản lý UID</span>
-          <span class="nav-count nav-count--pink" id="navUIDCount">0</span>
-        </a>
-        <a class="nav-item" href="#" data-page="packages">
-          <svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7l9-5z" fill="none" stroke-linejoin="round"/><path d="M3 7l9 5 9-5M12 12v10" fill="none" stroke-linejoin="round"/></svg>
-          <span>Gói Key</span>
-          <span class="nav-count nav-count--pink" id="navPkgCount">0</span>
-        </a>
-        <a class="nav-item" href="#" data-page="check">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none"/><path d="M8 12.5l2.7 2.7L16 9.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span>Kiểm tra Key</span>
-        </a>
-
-        <span class="nav-label">Hệ thống</span>
-        <a class="nav-item" href="#" data-page="settings" id="navRefresh">
-          <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-2.6-6.3M21 4v5h-5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span>Làm mới dữ liệu</span>
-        </a>
-      </nav>
-
-      <div class="sidebar__footer">
-        <div class="storage-widget">
-          <div class="storage-widget__head">
-            <span>Key đang hoạt động</span><span class="storage-widget__pct" id="activePct">0%</span>
-          </div>
-          <div class="storage-widget__bar"><i id="activeBar" style="--w:0%"></i></div>
-          <p id="activeSummary">0 / 0 key còn hạn</p>
-        </div>
-        <div class="sidebar__user">
-          <div class="avatar-fallback" style="width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;color:#fff;background:linear-gradient(135deg,#22d3ee,#818cf8)">AD</div>
-          <div class="sidebar__user-meta">
-            <strong>Admin</strong>
-            <span>Quản trị viên</span>
-          </div>
-          <span class="online-dot"></span>
+      <div class="sidebar__user">
+        <div style="width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;color:#fff;background:linear-gradient(135deg,#22d3ee,#818cf8)">AD</div>
+        <div class="sidebar__user-meta">
+          <strong>Admin</strong>
+          <span>Quản trị viên</span>
         </div>
       </div>
-    </aside>
-
-    <!-- ═══════════ MAIN ═══════════ -->
-    <div class="main">
-
-      <header class="topbar">
-        <button class="topbar__menu icon-btn" id="mobileMenuBtn" aria-label="Mở menu">
-          <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
-        </button>
-
-        <button class="topbar__search" id="searchTrigger" aria-label="Tìm kiếm key">
-          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          <span>Tìm kiếm key…</span>
-          <kbd>⌘K</kbd>
-        </button>
-
-        <div class="topbar__right">
-          <div class="topbar__clock" id="clock" title="Giờ hiện tại">
-            <span class="clock-time" id="clockTime">--:--:--</span>
-            <span class="clock-date" id="clockDate"></span>
-          </div>
-
-          <button class="icon-btn" id="refreshBtn" title="Làm mới dữ liệu" aria-label="Làm mới">
-            <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-2.6-6.3M21 4v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
-
-          <button class="icon-btn" id="themeToggle" title="Đổi giao diện" aria-label="Đổi giao diện">
-            <svg class="icon-moon" viewBox="0 0 24 24"><path d="M20.5 14.5A8.5 8.5 0 019.5 3.5a8.5 8.5 0 1011 11z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-            <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.2 5.2l1.7 1.7M17.1 17.1l1.7 1.7M18.8 5.2l-1.7 1.7M6.9 17.1l-1.7 1.7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-          </button>
-
-          <button class="btn btn--primary btn--sm" id="topCreateKeyBtn">
-            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-            Tạo Key
-          </button>
-        </div>
-      </header>
-
-      <!-- ═══════════ CONTENT ═══════════ -->
-      <main class="content">
-
-        <!-- ────── PAGE: DASHBOARD ────── -->
-        <section class="page is-active" data-page-id="dashboard">
-          <div class="page-head reveal">
-            <div>
-              <p class="page-head__eyebrow">Tổng quan · <span id="todayLabel"></span></p>
-              <h1 class="page-head__title">Quản lý <span class="text-gradient">Key</span></h1>
-              <p class="page-head__sub">Theo dõi toàn bộ key và gói trong hệ thống của bạn.</p>
-            </div>
-            <div class="page-head__actions">
-              <button class="btn btn--ghost" id="exportBtn">
-                <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5M4 19h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                Xuất danh sách
-              </button>
-              <button class="btn btn--primary" id="dashCreateKeyBtn">
-                <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                Tạo Key mới
-              </button>
-            </div>
-          </div>
-
-          <div class="stats-grid">
-            <article class="stat-card stat-card--revenue reveal" style="--d:.05s">
-              <div class="stat-card__glow"></div>
-              <header>
-                <div class="stat-card__icon">
-                  <svg viewBox="0 0 24 24"><path d="M14 7a5 5 0 11-4.9 6L3 19v2h4v-2h2v-2h2l1.1-1.1A5 5 0 0114 7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="15.5" cy="10.5" r="1.5" fill="currentColor"/></svg>
-                </div>
-              </header>
-              <p class="stat-card__label">Tổng số Key</p>
-              <h3 class="stat-card__value"><span id="statTotal">0</span></h3>
-              <footer><span class="status-pip status-pip--live"></span> Đồng bộ Firebase realtime</footer>
-            </article>
-
-            <article class="stat-card stat-card--conversion reveal" style="--d:.12s">
-              <div class="stat-card__glow"></div>
-              <header>
-                <div class="stat-card__icon">
-                  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 12.5l2.7 2.7L16 9.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </div>
-              </header>
-              <p class="stat-card__label">Key còn hạn</p>
-              <h3 class="stat-card__value"><span id="statActive">0</span></h3>
-              <footer><span class="status-pip status-pip--live"></span> Đang hoạt động</footer>
-            </article>
-
-            <article class="stat-card stat-card--orders reveal" style="--d:.19s">
-              <div class="stat-card__glow"></div>
-              <header>
-                <div class="stat-card__icon">
-                  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-                </div>
-              </header>
-              <p class="stat-card__label">Key hết hạn</p>
-              <h3 class="stat-card__value"><span id="statExpired">0</span></h3>
-              <footer><span class="status-pip status-pip--warn"></span> Cần gia hạn hoặc xoá</footer>
-            </article>
-
-            <article class="stat-card stat-card--users reveal" style="--d:.26s">
-              <div class="stat-card__glow"></div>
-              <header>
-                <div class="stat-card__icon">
-                  <svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7l9-5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 7l9 5 9-5M12 12v10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-                </div>
-              </header>
-              <p class="stat-card__label">Số gói Key</p>
-              <h3 class="stat-card__value"><span id="statPackages">0</span></h3>
-              <footer><span class="status-pip status-pip--live"></span> Gói đang mở bán</footer>
-            </article>
-          </div>
-
-          <div class="charts-grid" style="grid-template-columns: 1.6fr 1fr;">
-            <article class="panel panel--activity reveal" style="--d:.1s">
-              <header class="panel__head">
-                <div>
-                  <h2>Key mới tạo gần đây</h2>
-                  <p>10 key được tạo mới nhất</p>
-                </div>
-                <button class="link-btn" data-goto="keys">Xem tất cả →</button>
-              </header>
-              <ul class="activity-feed" id="recentKeys"></ul>
-            </article>
-
-            <article class="panel panel--activity reveal" style="--d:.18s">
-              <header class="panel__head">
-                <div>
-                  <h2>Thống kê theo gói</h2>
-                  <p>Số key mỗi gói</p>
-                </div>
-              </header>
-              <ul class="pkg-stats" id="pkgStats"></ul>
-            </article>
-          </div>
-        </section>
-
-        <!-- ────── PAGE: KEYS ────── -->
-        <section class="page" data-page-id="keys">
-          <div class="page-head reveal">
-            <div>
-              <p class="page-head__eyebrow">Quản lý</p>
-              <h1 class="page-head__title">Danh sách <span class="text-gradient">Key</span></h1>
-              <p class="page-head__sub">Tạo, tìm kiếm, gia hạn và xoá key.</p>
-            </div>
-            <div class="page-head__actions">
-              <button class="btn btn--danger" id="deleteExpiredBtn">
-                <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M6.5 7l1 13h9l1-13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                Xoá key hết hạn
-              </button>
-              <button class="btn btn--primary" id="keysCreateBtn">
-                <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                Tạo Key
-              </button>
-            </div>
-          </div>
-
-          <div class="panel panel--table reveal" style="--d:.08s">
-            <header class="panel__head panel__head--table">
-              <div>
-                <h2>Tất cả Key</h2>
-                <p id="keysSubtitle">Đang tải dữ liệu…</p>
-              </div>
-              <div class="table-tools">
-                <div class="field field--search">
-                  <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                  <input type="text" id="tableSearch" placeholder="Tìm key, UID, ghi chú…" autocomplete="off" />
-                </div>
-                <div class="select-wrap">
-                  <select id="statusFilter" aria-label="Lọc theo trạng thái">
-                    <option value="all">Tất cả trạng thái</option>
-                    <option value="active">Còn hạn</option>
-                    <option value="expired">Hết hạn</option>
-                    <option value="banned">Bị khoá</option>
-                  </select>
-                </div>
-                <div class="select-wrap">
-                  <select id="packageFilter" aria-label="Lọc theo gói">
-                    <option value="all">Tất cả gói</option>
-                  </select>
-                </div>
-              </div>
-            </header>
-
-            <div class="datagrid" id="datagrid">
-              <div class="datagrid__head datagrid__head--keys">
-                <button class="dg-cell dg-cell--sortable" data-sort="key">Key <i class="sort-arrow"></i></button>
-                <button class="dg-cell dg-cell--sortable" data-sort="package">Gói <i class="sort-arrow"></i></button>
-                <button class="dg-cell dg-cell--sortable" data-sort="createdAt">Ngày tạo <i class="sort-arrow"></i></button>
-                <button class="dg-cell dg-cell--sortable" data-sort="expiresAt">Hết hạn <i class="sort-arrow"></i></button>
-                <button class="dg-cell dg-cell--sortable" data-sort="devices">Thiết bị <i class="sort-arrow"></i></button>
-                <span class="dg-cell">Trạng thái</span>
-                <span class="dg-cell dg-cell--end">Thao tác</span>
-              </div>
-              <div class="datagrid__body" id="tableBody"></div>
-              <div class="datagrid__empty" id="tableEmpty" hidden>
-                <svg viewBox="0 0 24 24"><path d="M14 7a5 5 0 11-4.9 6L3 19v2h4v-2h2v-2h2l1.1-1.1A5 5 0 0114 7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
-                <strong>Không tìm thấy key</strong>
-                <p>Thử đổi từ khoá tìm kiếm hoặc bộ lọc, hoặc tạo key mới.</p>
-              </div>
-            </div>
-
-            <footer class="datagrid__footer">
-              <span id="pageInfo">Hiển thị 0–0 / 0</span>
-              <div class="pagination" id="pagination"></div>
-            </footer>
-          </div>
-        </section>
-
-        <!-- ────── PAGE: UID ────── -->
-        <section class="page" data-page-id="uid">
-          <div class="page-head reveal">
-            <div>
-              <p class="page-head__eyebrow">Quản lý</p>
-              <h1 class="page-head__title">Danh sách <span class="text-gradient">UID</span></h1>
-              <p class="page-head__sub">Quản lý tất cả UID đang hoạt động trong hệ thống.</p>
-            </div>
-            <div class="page-head__actions">
-              <button class="btn btn--primary" id="addGlobalUIDBtn">
-                <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                Thêm UID
-              </button>
-            </div>
-          </div>
-
-          <div class="panel panel--table reveal" style="--d:.08s">
-            <header class="panel__head panel__head--table">
-              <div>
-                <h2>Tất cả UID</h2>
-                <p id="uidSubtitle">Đang tải dữ liệu…</p>
-              </div>
-              <div class="table-tools">
-                <div class="field field--search">
-                  <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                  <input type="text" id="uidSearch" placeholder="Tìm UID, key liên kết…" autocomplete="off" />
-                </div>
-                <div class="select-wrap">
-                  <select id="uidStatusFilter" aria-label="Lọc theo trạng thái">
-                    <option value="all">Tất cả trạng thái</option>
-                    <option value="active">Đang dùng</option>
-                    <option value="inactive">Chưa dùng</option>
-                  </select>
-                </div>
-              </div>
-            </header>
-
-            <div class="datagrid" id="uidGrid">
-              <div class="datagrid__head datagrid__head--uid">
-                <span class="dg-cell">UID</span>
-                <span class="dg-cell">Key liên kết</span>
-                <span class="dg-cell">Gói</span>
-                <span class="dg-cell">Trạng thái</span>
-                <span class="dg-cell dg-cell--end">Thao tác</span>
-              </div>
-              <div class="datagrid__body" id="uidBody"></div>
-              <div class="datagrid__empty" id="uidEmpty" hidden>
-                <svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>
-                <strong>Không tìm thấy UID</strong>
-                <p>Thử đổi từ khoá tìm kiếm hoặc bộ lọc.</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- ────── PAGE: PACKAGES ────── -->
-        <section class="page" data-page-id="packages">
-          <div class="page-head reveal">
-            <div>
-              <p class="page-head__eyebrow">Quản lý</p>
-              <h1 class="page-head__title">Gói <span class="text-gradient">Key</span></h1>
-              <p class="page-head__sub">Tạo và quản lý các gói thời hạn cho key.</p>
-            </div>
-            <div class="page-head__actions">
-              <button class="btn btn--primary" id="createPkgBtn">
-                <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                Tạo Gói mới
-              </button>
-            </div>
-          </div>
-
-          <div class="pkg-grid reveal" id="pkgGrid" style="--d:.08s"></div>
-        </section>
-
-        <!-- ────── PAGE: CHECK ────── -->
-        <section class="page" data-page-id="check">
-          <div class="page-head reveal">
-            <div>
-              <p class="page-head__eyebrow">Công cụ</p>
-              <h1 class="page-head__title">Kiểm tra <span class="text-gradient">Key</span></h1>
-              <p class="page-head__sub">Nhập key để kiểm tra trạng thái và thời hạn còn lại.</p>
-            </div>
-          </div>
-
-          <div class="panel check-panel reveal" style="--d:.08s">
-            <form id="checkForm" class="check-form" novalidate>
-              <div class="float-field check-form__field">
-                <input type="text" id="checkInput" placeholder=" " autocomplete="off" spellcheck="false" />
-                <label for="checkInput">Nhập key cần kiểm tra…</label>
-              </div>
-              <button type="submit" class="btn btn--primary" id="checkSubmit">
-                <span class="btn__label">Kiểm tra</span>
-                <span class="btn__spinner"></span>
-              </button>
-            </form>
-            <div class="check-result" id="checkResult" hidden></div>
-          </div>
-        </section>
-
-      </main>
     </div>
-  </div>
+  </aside>
 
-  <!-- ═══════════ MODAL: TẠO KEY ═══════════ -->
-  <div class="modal" id="keyModal" hidden>
-    <div class="modal__backdrop" data-close-modal></div>
-    <div class="modal__panel" role="dialog" aria-modal="true">
-      <header class="modal__head">
-        <div>
-          <h2>Tạo Key mới</h2>
-          <p>Key sẽ được lưu trực tiếp lên Firebase.</p>
-        </div>
-        <button class="icon-btn" data-close-modal aria-label="Đóng">
-          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        </button>
-      </header>
-      <form class="modal__body" id="keyForm" novalidate>
-        <div class="form-row">
-          <div class="float-field">
-            <input type="text" id="fPrefix" placeholder=" " value="KEY" maxlength="10" />
-            <label for="fPrefix">Tiền tố (prefix)</label>
-          </div>
-          <div class="float-field">
-            <input type="number" id="fQuantity" placeholder=" " value="1" min="1" max="100" required />
-            <label for="fQuantity">Số lượng key</label>
-            <span class="field-error">Số lượng từ 1 đến 100.</span>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="select-wrap select-wrap--full">
-            <select id="fPackage" required></select>
-          </div>
-          <div class="float-field">
-            <input type="number" id="fMaxDevices" placeholder=" " value="1" min="1" max="999" />
-            <label for="fMaxDevices">Giới hạn thiết bị</label>
-            <span class="field-error">Số thiết bị tối đa từ 1 đến 999.</span>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="float-field">
-            <input type="number" id="fDuration" placeholder=" " min="0" />
-            <label for="fDuration">Thời hạn tuỳ chỉnh (ngày)</label>
-          </div>
-          <div class="float-field">
-            <input type="text" id="fNote" placeholder=" " />
-            <label for="fNote">Ghi chú (tuỳ chọn)</label>
-          </div>
-        </div>
-        <p class="form-hint">💡 Để trống "Giới hạn thiết bị" và "Thời hạn tuỳ chỉnh" thì key dùng thông tin từ gói. Nhập <b>0</b> = vĩnh viễn.</p>
-        <footer class="modal__foot">
-          <button type="button" class="btn btn--ghost" data-close-modal>Huỷ</button>
-          <button type="submit" class="btn btn--primary" id="keySubmit">
-            <span class="btn__label">Tạo Key</span>
-            <span class="btn__spinner"></span>
-          </button>
-        </footer>
-      </form>
-    </div>
-  </div>
+  <!-- ── MAIN ── -->
+  <div class="main">
 
-  <!-- ═══════════ MODAL: TẠO GÓI ═══════════ -->
-  <div class="modal" id="pkgModal" hidden>
-    <div class="modal__backdrop" data-close-modal></div>
-    <div class="modal__panel" role="dialog" aria-modal="true">
-      <header class="modal__head">
-        <div>
-          <h2>Tạo Gói mới</h2>
-          <p>Gói xác định thời hạn và giới hạn thiết bị mặc định cho key.</p>
-        </div>
-        <button class="icon-btn" data-close-modal aria-label="Đóng">
-          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        </button>
-      </header>
-      <form class="modal__body" id="pkgForm" novalidate>
-        <div class="form-row">
-          <div class="float-field">
-            <input type="text" id="pName" placeholder=" " required />
-            <label for="pName">Tên gói (VD: VIP 1 tháng)</label>
-            <span class="field-error">Vui lòng nhập tên gói.</span>
-          </div>
-          <div class="float-field">
-            <input type="number" id="pDuration" placeholder=" " min="0" required />
-            <label for="pDuration">Thời hạn (ngày, 0 = vĩnh viễn)</label>
-            <span class="field-error">Vui lòng nhập thời hạn.</span>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="float-field">
-            <input type="number" id="pMaxDevices" placeholder=" " value="1" min="1" max="999" />
-            <label for="pMaxDevices">Giới hạn thiết bị</label>
-          </div>
-          <div class="float-field">
-            <input type="number" id="pPrice" placeholder=" " min="0" />
-            <label for="pPrice">Giá bán (VNĐ, tuỳ chọn)</label>
-          </div>
-        </div>
-        <div class="form-row form-row--single">
-          <div class="float-field">
-            <input type="text" id="pNote" placeholder=" " />
-            <label for="pNote">Mô tả (tuỳ chọn)</label>
-          </div>
-        </div>
-        <footer class="modal__foot">
-          <button type="button" class="btn btn--ghost" data-close-modal>Huỷ</button>
-          <button type="submit" class="btn btn--primary" id="pkgSubmit">
-            <span class="btn__label">Tạo Gói</span>
-            <span class="btn__spinner"></span>
-          </button>
-        </footer>
-      </form>
-    </div>
-  </div>
+    <header class="topbar">
+      <button class="topbar__menu icon-btn" id="mobileMenuBtn">
+        <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+      </button>
 
-  <!-- ═══════════ MODAL: KẾT QUẢ TẠO KEY ═══════════ -->
-  <div class="modal" id="resultModal" hidden>
-    <div class="modal__backdrop" data-close-modal></div>
-    <div class="modal__panel" role="dialog" aria-modal="true">
-      <header class="modal__head">
-        <div>
-          <h2>✅ Tạo Key thành công</h2>
-          <p>Sao chép danh sách key bên dưới để gửi cho người dùng.</p>
+      <button class="topbar__search" id="searchTrigger">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span>Tìm kiếm key…</span>
+        <kbd>⌘K</kbd>
+      </button>
+
+      <div class="topbar__right">
+        <div class="topbar__clock">
+          <span class="clock-time" id="clockTime">--:--:--</span>
+          <span class="clock-date" id="clockDate"></span>
         </div>
-        <button class="icon-btn" data-close-modal aria-label="Đóng">
-          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+
+        <button class="icon-btn" id="refreshBtn" title="Làm mới">
+          <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-2.6-6.3M21 4v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-      </header>
-      <div class="modal__body">
-        <div class="key-result-list" id="keyResultList"></div>
-        <footer class="modal__foot">
-          <button type="button" class="btn btn--ghost" data-close-modal>Đóng</button>
-          <button type="button" class="btn btn--primary" id="copyAllKeysBtn">
-            <svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
-            Sao chép tất cả
-          </button>
-        </footer>
+
+        <button class="icon-btn" id="themeToggle">
+          <svg viewBox="0 0 24 24"><path d="M20.5 14.5A8.5 8.5 0 019.5 3.5a8.5 8.5 0 1011 11z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </button>
+
+        <button class="btn btn--primary btn--sm" id="topCreateKeyBtn">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Tạo Key
+        </button>
       </div>
+    </header>
+
+    <div class="content">
+
+      <!-- ── PAGE: DASHBOARD ── -->
+      <section class="page is-active" data-page-id="dashboard">
+        <div class="page-head">
+          <div>
+            <p class="page-head__eyebrow">Tổng quan · <span id="todayLabel"></span></p>
+            <h1 class="page-head__title">Quản lý <span class="text-gradient">Key</span></h1>
+            <p class="page-head__sub">Theo dõi toàn bộ key và gói trong hệ thống.</p>
+          </div>
+          <div class="page-head__actions">
+            <button class="btn btn--ghost" id="exportBtn">
+              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5M4 19h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Xuất danh sách
+            </button>
+            <button class="btn btn--primary" id="dashCreateKeyBtn">
+              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              Tạo Key mới
+            </button>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-card__icon">
+              <svg viewBox="0 0 24 24"><path d="M14 7a5 5 0 11-4.9 6L3 19v2h4v-2h2v-2h2l1.1-1.1A5 5 0 0114 7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="15.5" cy="10.5" r="1.5" fill="currentColor"/></svg>
+            </div>
+            <p class="stat-card__label">Tổng số Key</p>
+            <h3 class="stat-card__value"><span id="statTotal">0</span></h3>
+            <footer><span class="status-pip status-pip--live"></span> Đồng bộ Firebase</footer>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card__icon">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 12.5l2.7 2.7L16 9.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <p class="stat-card__label">Key còn hạn</p>
+            <h3 class="stat-card__value"><span id="statActive">0</span></h3>
+            <footer><span class="status-pip status-pip--live"></span> Đang hoạt động</footer>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card__icon">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            </div>
+            <p class="stat-card__label">Key hết hạn</p>
+            <h3 class="stat-card__value"><span id="statExpired">0</span></h3>
+            <footer><span class="status-pip status-pip--warn"></span> Cần xoá hoặc gia hạn</footer>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card__icon">
+              <svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7l9-5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 7l9 5 9-5M12 12v10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+            </div>
+            <p class="stat-card__label">Số gói Key</p>
+            <h3 class="stat-card__value"><span id="statPackages">0</span></h3>
+            <footer><span class="status-pip status-pip--live"></span> Gói đang mở bán</footer>
+          </div>
+        </div>
+
+        <div class="panel">
+          <header class="panel__head">
+            <div>
+              <h2>Key mới tạo gần đây</h2>
+              <p>10 key được tạo mới nhất</p>
+            </div>
+            <button class="link-btn" data-goto="keys">Xem tất cả →</button>
+          </header>
+          <ul class="activity-feed" id="recentKeys"></ul>
+        </div>
+      </section>
+
+      <!-- ── PAGE: KEYS ── -->
+      <section class="page" data-page-id="keys">
+        <div class="page-head">
+          <div>
+            <p class="page-head__eyebrow">Quản lý</p>
+            <h1 class="page-head__title">Danh sách <span class="text-gradient">Key</span></h1>
+            <p class="page-head__sub">Tạo, tìm kiếm và quản lý key.</p>
+          </div>
+          <div class="page-head__actions">
+            <button class="btn btn--danger" id="deleteExpiredBtn">
+              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M6.5 7l1 13h9l1-13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Xoá key hết hạn
+            </button>
+            <button class="btn btn--primary" id="keysCreateBtn">
+              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              Tạo Key
+            </button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <header class="panel__head panel__head--table">
+            <div>
+              <h2>Tất cả Key</h2>
+              <p id="keysSubtitle">Đang tải dữ liệu…</p>
+            </div>
+            <div class="table-tools">
+              <div class="field">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                <input type="text" id="tableSearch" placeholder="Tìm key, UID, ghi chú…" />
+              </div>
+              <div class="select-wrap">
+                <select id="statusFilter">
+                  <option value="all">Tất cả trạng thái</option>
+                  <option value="active">Còn hạn</option>
+                  <option value="expired">Hết hạn</option>
+                  <option value="banned">Bị khoá</option>
+                </select>
+              </div>
+              <div class="select-wrap">
+                <select id="packageFilter">
+                  <option value="all">Tất cả gói</option>
+                </select>
+              </div>
+            </div>
+          </header>
+
+          <div class="datagrid">
+            <div class="datagrid__head datagrid__head--keys">
+              <span class="dg-cell dg-cell--sortable" data-sort="key">Key</span>
+              <span class="dg-cell dg-cell--sortable" data-sort="package">Gói</span>
+              <span class="dg-cell dg-cell--sortable" data-sort="createdAt">Ngày tạo</span>
+              <span class="dg-cell dg-cell--sortable" data-sort="expiresAt">Hết hạn</span>
+              <span class="dg-cell dg-cell--sortable" data-sort="devices">Thiết bị</span>
+              <span class="dg-cell">Trạng thái</span>
+              <span class="dg-cell dg-cell--end">Thao tác</span>
+            </div>
+            <div class="datagrid__body" id="tableBody"></div>
+            <div class="datagrid__empty" id="tableEmpty" hidden>
+              <svg viewBox="0 0 24 24"><path d="M14 7a5 5 0 11-4.9 6L3 19v2h4v-2h2v-2h2l1.1-1.1A5 5 0 0114 7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+              <strong>Không tìm thấy key</strong>
+              <p>Thử đổi từ khoá tìm kiếm hoặc bộ lọc.</p>
+            </div>
+          </div>
+
+          <footer class="datagrid__footer">
+            <span id="pageInfo">Hiển thị 0–0 / 0</span>
+            <div class="pagination" id="pagination"></div>
+          </footer>
+        </div>
+      </section>
+
+      <!-- ── PAGE: UID ── -->
+      <section class="page" data-page-id="uid">
+        <div class="page-head">
+          <div>
+            <p class="page-head__eyebrow">Quản lý</p>
+            <h1 class="page-head__title">Danh sách <span class="text-gradient">UID</span></h1>
+            <p class="page-head__sub">Quản lý tất cả UID trong hệ thống.</p>
+          </div>
+          <div class="page-head__actions">
+            <button class="btn btn--primary" id="addGlobalUIDBtn">
+              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              Thêm UID
+            </button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <header class="panel__head panel__head--table">
+            <div>
+              <h2>Tất cả UID</h2>
+              <p id="uidSubtitle">Đang tải dữ liệu…</p>
+            </div>
+            <div class="table-tools">
+              <div class="field">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                <input type="text" id="uidSearch" placeholder="Tìm UID, key liên kết…" />
+              </div>
+              <div class="select-wrap">
+                <select id="uidStatusFilter">
+                  <option value="all">Tất cả trạng thái</option>
+                  <option value="active">Đang dùng</option>
+                  <option value="inactive">Chưa dùng</option>
+                </select>
+              </div>
+            </div>
+          </header>
+
+          <div class="datagrid">
+            <div class="datagrid__head datagrid__head--uid">
+              <span class="dg-cell">UID</span>
+              <span class="dg-cell">Key liên kết</span>
+              <span class="dg-cell">Gói</span>
+              <span class="dg-cell">Trạng thái</span>
+              <span class="dg-cell dg-cell--end">Thao tác</span>
+            </div>
+            <div class="datagrid__body" id="uidBody"></div>
+            <div class="datagrid__empty" id="uidEmpty" hidden>
+              <svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>
+              <strong>Không tìm thấy UID</strong>
+              <p>Thử đổi từ khoá tìm kiếm hoặc bộ lọc.</p>
+            </div>
+          </div>
+
+          <footer class="datagrid__footer">
+            <span id="uidPageInfo">Hiển thị 0–0 / 0</span>
+            <div class="pagination" id="uidPagination"></div>
+          </footer>
+        </div>
+      </section>
+
+      <!-- ── PAGE: PACKAGES ── -->
+      <section class="page" data-page-id="packages">
+        <div class="page-head">
+          <div>
+            <p class="page-head__eyebrow">Quản lý</p>
+            <h1 class="page-head__title">Gói <span class="text-gradient">Key</span></h1>
+            <p class="page-head__sub">Tạo và quản lý các gói thời hạn.</p>
+          </div>
+          <div class="page-head__actions">
+            <button class="btn btn--primary" id="createPkgBtn">
+              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              Tạo Gói mới
+            </button>
+          </div>
+        </div>
+        <div class="pkg-grid" id="pkgGrid"></div>
+      </section>
+
+      <!-- ── PAGE: CHECK ── -->
+      <section class="page" data-page-id="check">
+        <div class="page-head">
+          <div>
+            <p class="page-head__eyebrow">Công cụ</p>
+            <h1 class="page-head__title">Kiểm tra <span class="text-gradient">Key</span></h1>
+            <p class="page-head__sub">Nhập key để kiểm tra trạng thái và thời hạn.</p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <form id="checkForm" class="check-form">
+            <div class="float-field check-form__field">
+              <input type="text" id="checkInput" placeholder=" " autocomplete="off" />
+              <label for="checkInput">Nhập key cần kiểm tra…</label>
+            </div>
+            <button type="submit" class="btn btn--primary" id="checkSubmit">
+              <span class="btn__label">Kiểm tra</span>
+              <span class="btn__spinner"></span>
+            </button>
+          </form>
+          <div class="check-result" id="checkResult" hidden></div>
+        </div>
+      </section>
+
     </div>
   </div>
+</div>
 
-  <!-- Toasts -->
-  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+<!-- ── MODAL: TẠO KEY ── -->
+<div class="modal" id="keyModal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel">
+    <header class="modal__head">
+      <div>
+        <h2>Tạo Key mới</h2>
+        <p>Key sẽ được lưu trực tiếp lên Firebase.</p>
+      </div>
+      <button class="icon-btn" data-close-modal>
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </header>
+    <form class="modal__body" id="keyForm">
+      <div class="form-row">
+        <div class="float-field">
+          <input type="text" id="fPrefix" placeholder=" " value="KEY" maxlength="10" />
+          <label for="fPrefix">Tiền tố</label>
+        </div>
+        <div class="float-field">
+          <input type="number" id="fQuantity" placeholder=" " value="1" min="1" max="100" required />
+          <label for="fQuantity">Số lượng</label>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="select-wrap select-wrap--full">
+          <select id="fPackage" required></select>
+        </div>
+        <div class="float-field">
+          <input type="number" id="fMaxDevices" placeholder=" " value="1" min="1" max="999" />
+          <label for="fMaxDevices">Giới hạn thiết bị</label>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="float-field">
+          <input type="number" id="fDuration" placeholder=" " min="0" />
+          <label for="fDuration">Thời hạn (ngày)</label>
+        </div>
+        <div class="float-field">
+          <input type="text" id="fNote" placeholder=" " />
+          <label for="fNote">Ghi chú</label>
+        </div>
+      </div>
+      <p class="form-hint">💡 Để trống "Thời hạn" và "Giới hạn thiết bị" sẽ dùng thông tin từ gói. <b>0</b> = vĩnh viễn.</p>
+      <footer class="modal__foot">
+        <button type="button" class="btn btn--ghost" data-close-modal>Huỷ</button>
+        <button type="submit" class="btn btn--primary" id="keySubmit">
+          <span class="btn__label">Tạo Key</span>
+          <span class="btn__spinner"></span>
+        </button>
+      </footer>
+    </form>
+  </div>
+</div>
 
-  <script src="js/api.js"></script>
-  <script src="js/app.js"></script>
+<!-- ── MODAL: TẠO GÓI ── -->
+<div class="modal" id="pkgModal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel">
+    <header class="modal__head">
+      <div>
+        <h2>Tạo Gói mới</h2>
+        <p>Gói xác định thời hạn và giới hạn thiết bị mặc định.</p>
+      </div>
+      <button class="icon-btn" data-close-modal>
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </header>
+    <form class="modal__body" id="pkgForm">
+      <div class="form-row">
+        <div class="float-field">
+          <input type="text" id="pName" placeholder=" " required />
+          <label for="pName">Tên gói</label>
+        </div>
+        <div class="float-field">
+          <input type="number" id="pDuration" placeholder=" " min="0" required />
+          <label for="pDuration">Thời hạn (ngày)</label>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="float-field">
+          <input type="number" id="pMaxDevices" placeholder=" " value="1" min="1" max="999" />
+          <label for="pMaxDevices">Giới hạn thiết bị</label>
+        </div>
+        <div class="float-field">
+          <input type="number" id="pPrice" placeholder=" " min="0" />
+          <label for="pPrice">Giá bán (VNĐ)</label>
+        </div>
+      </div>
+      <div class="form-row form-row--single">
+        <div class="float-field">
+          <input type="text" id="pNote" placeholder=" " />
+          <label for="pNote">Mô tả</label>
+        </div>
+      </div>
+      <footer class="modal__foot">
+        <button type="button" class="btn btn--ghost" data-close-modal>Huỷ</button>
+        <button type="submit" class="btn btn--primary" id="pkgSubmit">
+          <span class="btn__label">Tạo Gói</span>
+          <span class="btn__spinner"></span>
+        </button>
+      </footer>
+    </form>
+  </div>
+</div>
+
+<!-- ── MODAL: KẾT QUẢ ── -->
+<div class="modal" id="resultModal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel">
+    <header class="modal__head">
+      <div>
+        <h2>✅ Tạo Key thành công</h2>
+        <p>Sao chép danh sách key bên dưới.</p>
+      </div>
+      <button class="icon-btn" data-close-modal>
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </header>
+    <div class="modal__body">
+      <div class="key-result-list" id="keyResultList"></div>
+      <footer class="modal__foot">
+        <button type="button" class="btn btn--ghost" data-close-modal>Đóng</button>
+        <button type="button" class="btn btn--primary" id="copyAllKeysBtn">
+          <svg viewBox="0 0 24 24" width="16" height="16"><rect x="9" y="9" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+          Sao chép tất cả
+        </button>
+      </footer>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOAST ── -->
+<div class="toast-stack" id="toastStack"></div>
+
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>
