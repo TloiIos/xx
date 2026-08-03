@@ -1661,22 +1661,19 @@
 
   async function renderMenuBypassStats() {
     try {
-      const [status, bypass, kick] = await Promise.all([
-        KeyAPI.getMenuBypassStatus(),
+      const [bypass, kick] = await Promise.all([
         KeyAPI.getBypassMenuUIDs(),
         KeyAPI.getKickUIDs()
       ]);
       
-      menuBypassStatus = status;
       menuBypassUIDs = bypass;
       menuKickUIDs = kick;
       
       const bypassCount = Object.keys(bypass).filter(uid => bypass[uid]?.enabled === true).length;
       const kickCount = Object.keys(kick).filter(uid => kick[uid]?.kicked === true).length;
       
-      const isEnabled = status?.enabled || false;
       const el = (id, val) => { const e = $(`#${id}`); if (e) e.textContent = val; };
-      el("statBypassStatus", isEnabled ? "🟢 Bật" : "🔴 Tắt");
+      el("statBypassStatus", bypassCount > 0 ? `✅ ${bypassCount} UID` : "❌ Tắt");
       el("statBypassUIDCount", bypassCount);
       el("statKickCount", kickCount);
       el("statTotalActions", bypassCount + kickCount);
@@ -1684,10 +1681,11 @@
       
       const dot = $("#bypassStatusDot");
       if (dot) {
+        const isEnabled = bypassCount > 0;
         dot.style.background = isEnabled ? 'var(--green)' : 'var(--red)';
         dot.style.boxShadow = isEnabled ? '0 0 8px var(--green)' : '0 0 8px var(--red)';
       }
-      el("bypassStatusText", isEnabled ? "Đang bật" : "Đang tắt");
+      el("bypassStatusText", bypassCount > 0 ? `${bypassCount} UID bypass` : "Đang tắt");
       
       let latestKick = null;
       let latestTime = 0;
@@ -1781,26 +1779,6 @@
     renderMenuBypassList();
   });
 
-  document.getElementById('enableMenuBypassBtn')?.addEventListener('click', async () => {
-    try {
-      await KeyAPI.setMenuBypassStatus(true);
-      renderMenuBypass();
-      toast('success', '✅ Đã bật Bypass', 'Anticheat đã được tắt!');
-    } catch (err) {
-      toast('danger', 'Lỗi', err.message);
-    }
-  });
-
-  document.getElementById('disableMenuBypassBtn')?.addEventListener('click', async () => {
-    try {
-      await KeyAPI.setMenuBypassStatus(false);
-      renderMenuBypass();
-      toast('info', '❌ Đã tắt Bypass', 'Anticheat đã được bật lại!');
-    } catch (err) {
-      toast('danger', 'Lỗi', err.message);
-    }
-  });
-
   document.getElementById('enableUidBypassBtn')?.addEventListener('click', async () => {
     const uid = document.getElementById('menuBypassUidInput').value.trim();
     if (!uid) {
@@ -1835,6 +1813,48 @@
     }
   });
 
+  // Toggle Bypass UID từ danh sách
+  document.addEventListener('click', async (e) => {
+    const toggleBtn = e.target.closest('[data-toggle-menu-bypass]');
+    if (toggleBtn) {
+      const uid = toggleBtn.dataset.toggleMenuBypass;
+      const isEnabled = menuBypassUIDs[uid]?.enabled || false;
+      
+      try {
+        if (isEnabled) {
+          await KeyAPI.disableBypassMenu(uid);
+          toast('info', 'Đã tắt Bypass UID', `UID ${uid} đã được tắt bypass.`);
+        } else {
+          await KeyAPI.enableBypassMenu(uid);
+          toast('success', 'Đã bật Bypass UID', `UID ${uid} đã được bật bypass.`);
+        }
+        renderMenuBypass();
+      } catch (err) {
+        toast('danger', 'Lỗi', err.message);
+      }
+      return;
+    }
+    
+    // Kick từ danh sách
+    const kickBtn = e.target.closest('[data-menu-kick-uid]');
+    if (kickBtn) {
+      const uid = kickBtn.dataset.menuKickUid;
+      const reason = prompt(`Nhập lý do kick cho UID "${uid}":`, 'Bạn đã bị văng khỏi game!');
+      if (reason !== null) {
+        try {
+          await KeyAPI.kickNow(uid, reason);
+          await KeyAPI.addKickUID(uid, reason);
+          renderMenuBypass();
+          toast('danger', '💥 Đã Kick', `UID ${uid} đã bị văng khỏi game ngay lập tức!`);
+        } catch (err) {
+          toast('danger', 'Lỗi', err.message);
+        }
+      }
+      return;
+    }
+  });
+
+  // Kick form
   document.getElementById('menuKickForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const uid = document.getElementById('menuKickUidInput').value.trim();
@@ -1883,45 +1903,6 @@
       toast('success', 'Đã gỡ Kick', `UID ${uid} đã được gỡ khỏi danh sách kick.`);
     } catch (err) {
       toast('danger', 'Lỗi', err.message);
-    }
-  });
-
-  document.addEventListener('click', async (e) => {
-    const toggleBtn = e.target.closest('[data-toggle-menu-bypass]');
-    if (toggleBtn) {
-      const uid = toggleBtn.dataset.toggleMenuBypass;
-      const isEnabled = menuBypassUIDs[uid]?.enabled || false;
-      
-      try {
-        if (isEnabled) {
-          await KeyAPI.disableBypassMenu(uid);
-          toast('info', 'Đã tắt Bypass UID', `UID ${uid} đã được tắt bypass.`);
-        } else {
-          await KeyAPI.enableBypassMenu(uid);
-          toast('success', 'Đã bật Bypass UID', `UID ${uid} đã được bật bypass.`);
-        }
-        renderMenuBypass();
-      } catch (err) {
-        toast('danger', 'Lỗi', err.message);
-      }
-      return;
-    }
-    
-    const kickBtn = e.target.closest('[data-menu-kick-uid]');
-    if (kickBtn) {
-      const uid = kickBtn.dataset.menuKickUid;
-      const reason = prompt(`Nhập lý do kick cho UID "${uid}":`, 'Bạn đã bị văng khỏi game!');
-      if (reason !== null) {
-        try {
-          await KeyAPI.kickNow(uid, reason);
-          await KeyAPI.addKickUID(uid, reason);
-          renderMenuBypass();
-          toast('danger', '💥 Đã Kick', `UID ${uid} đã bị văng khỏi game ngay lập tức!`);
-        } catch (err) {
-          toast('danger', 'Lỗi', err.message);
-        }
-      }
-      return;
     }
   });
 

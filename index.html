@@ -357,23 +357,53 @@
           <div class="page-head reveal">
             <div>
               <p class="page-head__eyebrow">Công cụ</p>
-              <h1 class="page-head__title">Kiểm tra <span class="text-gradient">Key</span></h1>
-              <p class="page-head__sub">Nhập key để kiểm tra trạng thái và thời hạn còn lại.</p>
+              <h1 class="page-head__title">Kiểm tra <span class="text-gradient">Key</span> &amp; Bypass</h1>
+              <p class="page-head__sub">Nhập key để kiểm tra trạng thái hoặc nhập UID để kiểm tra bypass menu.</p>
             </div>
           </div>
 
-          <div class="panel check-panel reveal" style="--d:.08s">
-            <form id="checkForm" class="check-form" novalidate>
-              <div class="float-field check-form__field">
-                <input type="text" id="checkInput" placeholder=" " autocomplete="off" spellcheck="false" />
-                <label for="checkInput">Nhập key cần kiểm tra…</label>
-              </div>
-              <button type="submit" class="btn btn--primary" id="checkSubmit">
-                <span class="btn__label">Kiểm tra</span>
-                <span class="btn__spinner"></span>
-              </button>
-            </form>
-            <div class="check-result" id="checkResult" hidden></div>
+          <div class="charts-grid" style="grid-template-columns:1fr 1fr;">
+            <!-- Kiểm tra Key -->
+            <div class="panel check-panel reveal" style="--d:.08s">
+              <header class="panel__head">
+                <div>
+                  <h2>🔑 Kiểm tra Key</h2>
+                  <p>Nhập key để kiểm tra trạng thái và thời hạn còn lại</p>
+                </div>
+              </header>
+              <form id="checkForm" class="check-form" novalidate>
+                <div class="float-field check-form__field">
+                  <input type="text" id="checkInput" placeholder=" " autocomplete="off" spellcheck="false" />
+                  <label for="checkInput">Nhập key cần kiểm tra…</label>
+                </div>
+                <button type="submit" class="btn btn--primary" id="checkSubmit">
+                  <span class="btn__label">Kiểm tra</span>
+                  <span class="btn__spinner"></span>
+                </button>
+              </form>
+              <div class="check-result" id="checkResult" hidden></div>
+            </div>
+
+            <!-- Kiểm tra Bypass Menu -->
+            <div class="panel check-panel reveal" style="--d:.12s">
+              <header class="panel__head">
+                <div>
+                  <h2>🛡️ Kiểm tra Bypass Menu</h2>
+                  <p>Nhập UID để kiểm tra trạng thái bypass menu</p>
+                </div>
+              </header>
+              <form id="checkBypassForm" class="check-form" novalidate>
+                <div class="float-field check-form__field">
+                  <input type="text" id="checkBypassInput" placeholder=" " autocomplete="off" spellcheck="false" />
+                  <label for="checkBypassInput">Nhập UID cần kiểm tra…</label>
+                </div>
+                <button type="submit" class="btn btn--secondary" id="checkBypassSubmit">
+                  <span class="btn__label">Kiểm tra Bypass</span>
+                  <span class="btn__spinner"></span>
+                </button>
+              </form>
+              <div class="check-result" id="checkBypassResult" hidden></div>
+            </div>
           </div>
         </section>
 
@@ -493,7 +523,6 @@
             </div>
           </div>
 
-          <!-- Stats -->
           <div class="stats-grid" style="grid-template-columns:1fr 1fr 1fr 1fr">
             <article class="stat-card stat-card--users reveal" style="--d:.05s">
               <header><div class="stat-card__icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 12.5l2.7 2.7L16 9.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></header>
@@ -521,9 +550,7 @@
             </article>
           </div>
 
-          <!-- Main content -->
           <div class="charts-grid" style="grid-template-columns:1fr 1fr;">
-            <!-- Danh sách thiết bị -->
             <article class="panel panel--table reveal" style="--d:.08s">
               <header class="panel__head panel__head--table">
                 <div>
@@ -555,7 +582,6 @@
               </div>
             </article>
 
-            <!-- Log UID và thông tin chi tiết -->
             <article class="panel panel--activity reveal" style="--d:.16s">
               <header class="panel__head">
                 <div>
@@ -565,7 +591,6 @@
                 <button class="btn btn--sm btn--ghost" id="clearUidLogBtn">Xóa log</button>
               </header>
               
-              <!-- Thông tin chi tiết UID -->
               <div id="uidDetailPanel" style="display:none;padding:12px 0;border-bottom:1px solid var(--stroke)">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
                   <div><span style="color:var(--text-3)">UID:</span> <b id="detailUid">—</b></div>
@@ -584,7 +609,6 @@
                 </div>
               </div>
 
-              <!-- Log list -->
               <ul class="activity-feed" id="uidLogList" style="padding-top:8px">
                 <li style="padding:16px;color:var(--text-3);text-align:center">Chọn một UID để xem log</li>
               </ul>
@@ -608,7 +632,6 @@
             </div>
           </div>
 
-          <!-- Stats -->
           <div class="stats-grid" style="grid-template-columns:1fr 1fr 1fr 1fr">
             <article class="stat-card stat-card--users reveal" style="--d:.05s">
               <header><div class="stat-card__icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="3" y1="9" x2="21" y2="9" stroke="currentColor" stroke-width="1.8"/></svg></div></header>
@@ -636,9 +659,7 @@
             </article>
           </div>
 
-          <!-- Main content -->
           <div class="charts-grid" style="grid-template-columns:1.4fr 1fr;">
-            <!-- Danh sách Key với APP Info -->
             <article class="panel panel--table reveal" style="--d:.08s">
               <header class="panel__head panel__head--table">
                 <div>
@@ -669,7 +690,6 @@
               </div>
             </article>
 
-            <!-- Form SET APP & Device -->
             <article class="panel panel--activity reveal" style="--d:.16s">
               <header class="panel__head">
                 <div>
@@ -748,7 +768,7 @@
             <div>
               <p class="page-head__eyebrow">Quản lý</p>
               <h1 class="page-head__title">Bypass <span class="text-gradient">Menu</span></h1>
-              <p class="page-head__sub">Điều khiển bypass menu và kick game tức thì từ web.</p>
+              <p class="page-head__sub">Quản lý bypass menu cho từng UID cụ thể và kick game tức thì.</p>
             </div>
             <div class="page-head__actions">
               <button class="btn btn--secondary" id="refreshMenuBypassBtn">
@@ -758,12 +778,11 @@
             </div>
           </div>
 
-          <!-- Stats -->
           <div class="stats-grid" style="grid-template-columns:1fr 1fr 1fr 1fr">
             <article class="stat-card stat-card--users reveal" style="--d:.05s">
               <header><div class="stat-card__icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 12.5l2.7 2.7L16 9.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></header>
-              <p class="stat-card__label">Bypass Anticheat</p>
-              <h3 class="stat-card__value"><span id="statBypassStatus">Tắt</span></h3>
+              <p class="stat-card__label">Bypass Menu</p>
+              <h3 class="stat-card__value"><span id="statBypassStatus">0 UID</span></h3>
               <footer><span class="status-pip status-pip--live" id="bypassStatusDot"></span> <span id="bypassStatusText">Đang tắt</span></footer>
             </article>
             <article class="stat-card stat-card--conversion reveal" style="--d:.12s">
@@ -786,14 +805,12 @@
             </article>
           </div>
 
-          <!-- Main content -->
           <div class="charts-grid" style="grid-template-columns:1.4fr 1fr;">
-            <!-- Danh sách UID -->
             <article class="panel panel--table reveal" style="--d:.08s">
               <header class="panel__head panel__head--table">
                 <div>
-                  <h2>Danh sách UID</h2>
-                  <p id="menuBypassSubtitle">Quản lý bypass menu và kick</p>
+                  <h2>Danh sách UID Bypass</h2>
+                  <p id="menuBypassSubtitle">Quản lý bypass menu cho từng UID</p>
                 </div>
                 <div class="table-tools">
                   <div class="field field--search">
@@ -819,45 +836,39 @@
               </div>
             </article>
 
-            <!-- Form điều khiển -->
             <article class="panel panel--activity reveal" style="--d:.16s">
               <header class="panel__head">
                 <div>
-                  <h2>🎮 Điều khiển Menu</h2>
-                  <p>Bật/tắt bypass menu và kick game</p>
+                  <h2>🎮 Quản lý Bypass</h2>
+                  <p>Nhập UID để bật hoặc tắt bypass</p>
                 </div>
               </header>
               
-              <!-- Bypass Anticheat Switch -->
-              <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--stroke)">
-                <div>
-                  <span style="font-weight:600">🚀 Bypass Anticheat</span>
-                  <p style="font-size:12px;color:var(--text-3);margin:0">Bật để tắt anticheat, tắt để bật lại</p>
-                </div>
-                <div style="display:flex;gap:8px">
-                  <button class="btn btn--success btn--sm" id="enableMenuBypassBtn">✅ Bật</button>
-                  <button class="btn btn--danger btn--sm" id="disableMenuBypassBtn">❌ Tắt</button>
-                </div>
-              </div>
-
-              <!-- Form Bypass UID -->
-              <form id="menuBypassForm" style="display:flex;flex-direction:column;gap:12px;padding:12px 0">
+              <div style="display:flex;flex-direction:column;gap:12px;padding:8px 0">
                 <div class="float-field">
                   <input type="text" id="menuBypassUidInput" placeholder=" " autocomplete="off" spellcheck="false" />
-                  <label for="menuBypassUidInput">UID cần bypass</label>
+                  <label for="menuBypassUidInput">Nhập UID cần cấu hình</label>
                 </div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap">
-                  <button type="submit" class="btn btn--success" id="enableUidBypassBtn" style="flex:1">
+                
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                  <button class="btn btn--success" id="enableUidBypassBtn" style="height:44px">
                     <span class="btn__label">✅ Bật Bypass</span>
                   </button>
-                  <button type="button" class="btn btn--danger" id="disableUidBypassBtn" style="flex:1">
+                  <button class="btn btn--danger" id="disableUidBypassBtn" style="height:44px">
                     <span class="btn__label">❌ Tắt Bypass</span>
                   </button>
                 </div>
-              </form>
+                
+                <div style="display:flex;gap:8px;align-items:center;padding:6px 12px;background:var(--glass);border-radius:8px;border:1px solid var(--stroke)">
+                  <span style="font-size:20px">💡</span>
+                  <span style="font-size:12px;color:var(--text-3)">
+                    <b>Bật:</b> UID được bypass → tắt anticheat<br>
+                    <b>Tắt:</b> UID không được bypass → bật anticheat
+                  </span>
+                </div>
+              </div>
 
-              <!-- Form Kick -->
-              <div style="margin-top:12px;border-top:1px solid var(--stroke);padding-top:14px">
+              <div style="margin-top:16px;border-top:1px solid var(--stroke);padding-top:14px">
                 <header class="panel__head" style="margin-bottom:8px">
                   <div>
                     <h2 style="font-size:15px">🚨 Kick ngay lập tức</h2>
@@ -873,12 +884,12 @@
                     <input type="text" id="menuKickReasonInput" placeholder=" " autocomplete="off" spellcheck="false" value="Bạn đã bị văng khỏi game!" />
                     <label for="menuKickReasonInput">Lý do kick</label>
                   </div>
-                  <div style="display:flex;gap:8px;flex-wrap:wrap">
-                    <button type="submit" class="btn btn--danger" id="menuKickNowBtn" style="flex:1">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                    <button type="submit" class="btn btn--danger" id="menuKickNowBtn" style="height:44px">
                       <span class="btn__label">💥 Kick ngay</span>
                       <span class="btn__spinner"></span>
                     </button>
-                    <button type="button" class="btn btn--secondary" id="menuRemoveKickBtn" style="flex:1">
+                    <button type="button" class="btn btn--secondary" id="menuRemoveKickBtn" style="height:44px">
                       <span class="btn__label">🔓 Gỡ Kick</span>
                     </button>
                   </div>
@@ -887,9 +898,9 @@
               
               <div style="margin-top:12px;border-top:1px solid var(--stroke);padding-top:14px">
                 <p style="font-size:12.5px;color:var(--text-3)">
-                  💡 <b>Bypass Anticheat</b>: Bật để tắt anticheat (cả game), tắt để bật lại.<br>
-                  💡 <b>UID Bypass</b>: Chỉ bypass cho UID cụ thể.<br>
-                  💡 <b>Kick</b>: Văng UID khỏi game ngay lập tức.
+                  💡 <b>Bypass Menu</b>: Chỉ bật cho UID cụ thể. UID được bypass sẽ tắt anticheat.<br>
+                  💡 <b>Kick</b>: Văng UID khỏi game ngay lập tức.<br>
+                  💡 <b>UID</b>: Lấy từ tab "Quản lý UID" hoặc "Quản lý Thiết bị".
                 </p>
               </div>
             </article>
