@@ -54,6 +54,7 @@
 }
 .dashboard-hero__status span { color: var(--text-3); }
 
+/* ── Ops Strip ── */
 .ops-strip {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -342,4 +343,118 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ── Dashboard Key Stats ── */
+.dashboard-keys-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--gap);
+}
+.dashboard-keys-stats .stat-card {
+  margin: 0;
+}
+.dashboard-keys-stats .stat-card__value {
+  font-size: clamp(24px, 2.2vw, 32px);
+}
+
+@media (max-width: 768px) {
+  .dashboard-keys-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .dashboard-keys-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Dashboard Charts ── */
+.dashboard-charts {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: var(--gap);
+}
+.dashboard-charts .panel {
+  margin: 0;
+}
+
+@media (max-width: 1000px) {
+  .dashboard-charts {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Activity Feed item hover ── */
+.activity-feed .activity-item {
+  transition: background 0.2s ease;
+  cursor: default;
+  border-radius: 8px;
+}
+.activity-feed .activity-item:hover {
+  background: var(--glass-strong);
+}
+
+/* ── Status Dot Pulse ── */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+/* ── Page Head Actions ── */
+.page-head__actions .btn {
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .page-head__actions {
+    width: 100%;
+  }
+  .page-head__actions .btn {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+/* ── Text Gradient ── */
+.text-gradient {
+  background: linear-gradient(120deg, var(--cyan), var(--purple), var(--pink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ── Reveal Animation ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  animation: reveal-up 0.8s var(--ease-out) forwards;
+}
+@keyframes reveal-up {
+  to { opacity: 1; transform: none; }
+}
+
+/* ── Menu Bypass ── */
+#menuBypassForm .btn,
+#menuKickForm .btn {
+  height: 40px;
+}
+
+.btn--success {
+  color: #fff;
+  background: linear-gradient(120deg, #059669, #34d399);
+  box-shadow: 0 4px 16px rgba(5, 150, 105, 0.3);
+}
+.btn--success:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(5, 150, 105, 0.45);
+}
+
+.btn--warning {
+  color: #fff;
+  background: linear-gradient(120deg, #d97706, #fbbf24);
+  box-shadow: 0 4px 16px rgba(217, 119, 6, 0.3);
+}
+.btn--warning:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(217, 119, 6, 0.45);
 }
