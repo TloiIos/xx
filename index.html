@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KeyVault — Quản lý Key</title>
+  <meta name="description" content="KeyVault — Hệ thống quản lý key premium" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/keymanager.css" />
+</head>
+<body>
+
+  <!-- ═══════════ BACKGROUND ═══════════ -->
+  <div class="bg-stage" aria-hidden="true">
+    <div class="bg-aurora"></div>
+    <div class="bg-blob bg-blob--cyan"></div>
+    <div class="bg-blob bg-blob--purple"></div>
+    <div class="bg-blob bg-blob--pink"></div>
+    <div class="bg-grid"></div>
+    <canvas id="particles"></canvas>
+    <div class="bg-noise"></div>
+    <div class="bg-vignette"></div>
+  </div>
+
+  <div class="cursor-glow" aria-hidden="true"></div>
+
+  <div class="shell">
+
+    <!-- ═══════════ SIDEBAR ═══════════ -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar__brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M14 7a5 5 0 11-4.9 6L3 19v2h4v-2h2v-2h2l1.1-1.1A5 5 0 0114 7z" stroke="url(#brandGrad)" stroke-width="1.6" stroke-linejoin="round"/><circle cx="15.5" cy="10.5" r="1.5" fill="url(#brandGrad)"/><defs><linearGradient id="brandGrad" x1="2" y1="2" x2="22" y2="22"><stop stop-color="#22d3ee"/><stop offset=".5" stop-color="#818cf8"/><stop offset="1" stop-color="#e879f9"/></linearGradient></defs></svg>
+        </div>
+        <span class="brand-name">KeyVault</span>
+        <button class="sidebar__collapse" id="sidebarCollapse" title="Thu gọn" aria-label="Thu gọn sidebar">
+          <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+
+      <nav class="sidebar__nav">
+        <span class="nav-label">Quản lý</span>
+        <a class="nav-item is-active" href="#" data-page="dashboard">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>
+          <span>Tổng quan</span>
+        </a>
+        <a class="nav-item" href="#" data-page="keys">
+          <svg viewBox="0 0 24 24"><path d="M14 7a5 5 0 11-4.9 6L3 19v2h4v-2h2v-2h2l1.1-1.1A5 5 0 0114 7z" stroke-linejoin="round"/><circle cx="15.5" cy="10.5" r="1.5"/></svg>
+          <span>Danh sách Key</span>
+          <span class="nav-count" id="navKeyCount">0</span>
+        </a>
+        <a class="nav-item" href="#" data-page="packages">
+          <svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7l9-5z" fill="none" stroke-linejoin="round"/><path d="M3 7l9 5 9-5M12 12v10" fill="none" stroke-linejoin="round"/></svg>
+          <span>Gói Key</span>
+          <span class="nav-count nav-count--pink" id="navPkgCount">0</span>
+        </a>
+        <a class="nav-item" href="#" data-page="check">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none"/><path d="M8 12.5l2.7 2.7L16 9.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Kiểm tra Key</span>
+        </a>
+
+        <span class="nav-label">Hệ thống</span>
+        <a class="nav-item" href="#" data-page="settings" id="navRefresh">
+          <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-2.6-6.3M21 4v5h-5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Làm mới dữ liệu</span>
+        </a>
+      </nav>
+
+      <div class="sidebar__footer">
+        <div class="storage-widget">
+          <div class="storage-widget__head">
+            <span>Key đang hoạt động</span><span class="storage-widget__pct" id="activePct">0%</span>
+          </div>
+          <div class="storage-widget__bar"><i id="activeBar" style="--w:0%"></i></div>
+          <p id="activeSummary">0 / 0 key còn hạn</p>
+        </div>
+        <div class="sidebar__user">
+          <div class="avatar-fallback" style="width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;color:#fff;background:linear-gradient(135deg,#22d3ee,#818cf8)">AD</div>
+          <div class="sidebar__user-meta">
+            <strong>Admin</strong>
+            <span>Quản trị viên</span>
+          </div>
+          <span class="online-dot"></span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ═══════════ MAIN ═══════════ -->
+    <div class="main">
+
+      <header class="topbar">
+        <button class="topbar__menu icon-btn" id="mobileMenuBtn" aria-label="Mở menu">
+          <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+        </button>
+
+        <button class="topbar__search" id="searchTrigger" aria-label="Tìm kiếm key">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <span>Tìm kiếm key…</span>
+          <kbd>⌘K</kbd>
+        </button>
+
+        <div class="topbar__right">
+          <div class="topbar__clock" id="clock" title="Giờ hiện tại">
+            <span class="clock-time" id="clockTime">--:--:--</span>
+            <span class="clock-date" id="clockDate"></span>
+          </div>
+
+          <button class="icon-btn" id="refreshBtn" title="Làm mới dữ liệu" aria-label="Làm mới">
+            <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-2.6-6.3M21 4v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+
+          <button class="icon-btn" id="themeToggle" title="Đổi giao diện" aria-label="Đổi giao diện">
+            <svg class="icon-moon" viewBox="0 0 24 24"><path d="M20.5 14.5A8.5 8.5 0 019.5 3.5a8.5 8.5 0 1011 11z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+            <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.2 5.2l1.7 1.7M17.1 17.1l1.7 1.7M18.8 5.2l-1.7 1.7M6.9 17.1l-1.7 1.7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </button>
+
+          <button class="btn btn--primary btn--sm" id="topCreateKeyBtn">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            Tạo Key
+          </button>
+        </div>
+      </header>
+
+      <!-- ═══════════ CONTENT ═══════════ -->
+      <main class="content">
+
+        <!-- ────── PAGE: DASHBOARD ────── -->
+        <section class="page is-active" data-page-id="dashboard">
+          <div class="page-head reveal">
+            <div>
+              <p class="page-head__eyebrow">Tổng quan · <span id="todayLabel"></span></p>
+              <h1 class="page-head__title">Quản lý <span class="text-gradient">Key</span></h1>
+              <p class="page-head__sub">Theo dõi toàn bộ key và gói trong hệ thống của bạn.</p>
+            </div>
+            <div class="page-head__actions">
+              <button class="btn btn--ghost" id="exportBtn">
+                <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5M4 19h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Xuất danh sách
+              </button>
+              <button class="btn btn--primary" id="dashCreateKeyBtn">
+                <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                Tạo Key mới
+              </button>
+            </div>
+          </div>
+
+          <div class="stats-grid">
+            <article class="stat-card stat-card--revenue reveal" style="--d:.05s">
+              <div class="stat-card__glow"></div>
+              <header>
+                <div class="stat-card__icon">
+                  <svg viewBox="0 0 24 24"><path d="M14 7a5 5 0 11-4.9 6L3 19v2h4v-2h2v-2h2l1.1-1.1A5 5 0 0114 7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="15.5" cy="10.5" r="1.5" fill="currentColor"/></svg>
+                </div>
+              </header>
+              <p class="stat-card__label">Tổng số Key</p>
+              <h3 class="stat-card__value"><span id="statTotal">0</span></h3>
+              <footer><span class="status-pip status-pip--live"></span> Đồng bộ Firebase realtime</footer>
+            </article>
+
+            <article class="stat-card stat-card--conversion reveal" style="--d:.12s">
+              <div class="stat-card__glow"></div>
+              <header>
+                <div class="stat-card__icon">
+                  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 12.5l2.7 2.7L16 9.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+              </header>
+              <p class="stat-card__label">Key còn hạn</p>
+              <h3 class="stat-card__value"><span id="statActive">0</span></h3>
+              <footer><span class="status-pip status-pip--live"></span> Đang hoạt động</footer>
+            </article>
+
+            <article class="stat-card stat-card--orders reveal" style="--d:.19s">
+              <div class="stat-card__glow"></div>
+              <header>
+                <div class="stat-card__icon">
+                  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                </div>
+              </header>
+              <p class="stat-card__label">Key hết hạn</p>
+              <h3 class="stat-card__value"><span id="statExpired">0</span></h3>
+              <footer><span class="status-pip status-pip--warn"></span> Cần gia hạn hoặc xoá</footer>
+            </article>
+
+            <article class="stat-card stat-card--users reveal" style="--d:.26s">
+              <div class="stat-card__glow"></div>
+              <header>
+                <div class="stat-card__icon">
+                  <svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7l9-5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 7l9 5 9-5M12 12v10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+                </div>
+              </header>
+              <p class="stat-card__label">Số gói Key</p>
+              <h3 class="stat-card__value"><span id="statPackages">0</span></h3>
+              <footer><span class="status-pip status-pip--live"></span> Gói đang mở bán</footer>
+            </article>
+          </div>
+
+          <div class="charts-grid" style="grid-template-columns: 1.6fr 1fr;">
+            <article class="panel panel--activity reveal" style="--d:.1s">
+              <header class="panel__head">
+                <div>
+                  <h2>Key mới tạo gần đây</h2>
+                  <p>10 key được tạo mới nhất</p>
+                </div>
+                <button class="link-btn" data-goto="keys">Xem tất cả →</button>
+              </header>
+              <ul class="activity-feed" id="recentKeys"></ul>
+            </article>
+
+            <article class="panel panel--activity reveal" style="--d:.18s">
+              <header class="panel__head">
+                <div>
+                  <h2>Thống kê theo gói</h2>
+                  <p>Số key mỗi gói</p>
+                </div>
+              </header>
+              <ul class="pkg-stats" id="pkgStats"></ul>
+            </article>
+          </div>
+        </section>
+
+        <!-- ────── PAGE: KEYS ────── -->
+        <section class="page" data-page-id="keys">
+          <div class="page-head reveal">
+            <div>
+              <p class="page-head__eyebrow">Quản lý</p>
+              <h1 class="page-head__title">Danh sách <span class="text-gradient">Key</span></h1>
+              <p class="page-head__sub">Tạo, tìm kiếm, gia hạn và xoá key.</p>
+            </div>
+            <div class="page-head__actions">
+              <button class="btn btn--danger" id="deleteExpiredBtn">
+                <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M6.5 7l1 13h9l1-13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Xoá key hết hạn
+              </button>
+              <button class="btn btn--primary" id="keysCreateBtn">
+                <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                Tạo Key
+              </button>
+            </div>
+          </div>
+
+          <div class="panel panel--table reveal" style="--d:.08s">
+            <header class="panel__head panel__head--table">
+              <div>
+                <h2>Tất cả Key</h2>
+                <p id="keysSubtitle">Đang tải dữ liệu…</p>
+              </div>
+              <div class="table-tools">
+                <div class="field field--search">
+                  <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                  <input type="text" id="tableSearch" placeholder="Tìm key, ghi chú…" autocomplete="off" />
+                </div>
+                <div class="select-wrap">
+                  <select id="statusFilter" aria-label="Lọc theo trạng thái">
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="active">Còn hạn</option>
+                    <option value="expired">Hết hạn</option>
+                    <option value="banned">Bị khoá</option>
+                  </select>
+                </div>
+                <div class="select-wrap">
+                  <select id="packageFilter" aria-label="Lọc theo gói">
+                    <option value="all">Tất cả gói</option>
+                  </select>
+                </div>
+              </div>
+            </header>
+
+            <div class="datagrid" id="datagrid">
+              <div class="datagrid__head datagrid__head--keys">
+                <button class="dg-cell dg-cell--sortable" data-sort="key">Key <i class="sort-arrow"></i></button>
+                <button class="dg-cell dg-cell--sortable" data-sort="package">Gói <i class="sort-arrow"></i></button>
+                <button class="dg-cell dg-cell--sortable" data-sort="createdAt">Ngày tạo <i class="sort-arrow"></i></button>
+                <button class="dg-cell dg-cell--sortable" data-sort="expiresAt">Hết hạn <i class="sort-arrow"></i></button>
+                <button class="dg-cell dg-cell--sortable" data-sort="devices">Thiết bị <i class="sort-arrow"></i></button>
+                <span class="dg-cell">Trạng thái</span>
+                <span class="dg-cell dg-cell--end">Thao tác</span>
+              </div>
+              <div class="datagrid__body" id="tableBody"></div>
+              <div class="datagrid__empty" id="tableEmpty" hidden>
+                <svg viewBox="0 0 24 24"><path d="M14 7a5 5 0 11-4.9 6L3 19v2h4v-2h2v-2h2l1.1-1.1A5 5 0 0114 7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+                <strong>Không tìm thấy key</strong>
+                <p>Thử đổi từ khoá tìm kiếm hoặc bộ lọc, hoặc tạo key mới.</p>
+              </div>
+            </div>
+
+            <footer class="datagrid__footer">
+              <span id="pageInfo">Hiển thị 0–0 / 0</span>
+              <div class="pagination" id="pagination"></div>
+            </footer>
+          </div>
+        </section>
+
+        <!-- ────── PAGE: PACKAGES ────── -->
+        <section class="page" data-page-id="packages">
+          <div class="page-head reveal">
+            <div>
+              <p class="page-head__eyebrow">Quản lý</p>
+              <h1 class="page-head__title">Gói <span class="text-gradient">Key</span></h1>
+              <p class="page-head__sub">Tạo và quản lý các gói thời hạn cho key.</p>
+            </div>
+            <div class="page-head__actions">
+              <button class="btn btn--primary" id="createPkgBtn">
+                <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                Tạo Gói mới
+              </button>
+            </div>
+          </div>
+
+          <div class="pkg-grid reveal" id="pkgGrid" style="--d:.08s"></div>
+        </section>
+
+        <!-- ────── PAGE: CHECK ────── -->
+        <section class="page" data-page-id="check">
+          <div class="page-head reveal">
+            <div>
+              <p class="page-head__eyebrow">Công cụ</p>
+              <h1 class="page-head__title">Kiểm tra <span class="text-gradient">Key</span></h1>
+              <p class="page-head__sub">Nhập key để kiểm tra trạng thái và thời hạn còn lại.</p>
+            </div>
+          </div>
+
+          <div class="panel check-panel reveal" style="--d:.08s">
+            <form id="checkForm" class="check-form" novalidate>
+              <div class="float-field check-form__field">
+                <input type="text" id="checkInput" placeholder=" " autocomplete="off" spellcheck="false" />
+                <label for="checkInput">Nhập key cần kiểm tra…</label>
+              </div>
+              <button type="submit" class="btn btn--primary" id="checkSubmit">
+                <span class="btn__label">Kiểm tra</span>
+                <span class="btn__spinner"></span>
+              </button>
+            </form>
+            <div class="check-result" id="checkResult" hidden></div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ═══════════ MODAL: TẠO KEY ═══════════ -->
+  <div class="modal" id="keyModal" hidden>
+    <div class="modal__backdrop" data-close-modal></div>
+    <div class="modal__panel" role="dialog" aria-modal="true">
+      <header class="modal__head">
+        <div>
+          <h2>Tạo Key mới</h2>
+          <p>Key sẽ được lưu trực tiếp lên Firebase.</p>
+        </div>
+        <button class="icon-btn" data-close-modal aria-label="Đóng">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </header>
+      <form class="modal__body" id="keyForm" novalidate>
+        <div class="form-row">
+          <div class="float-field">
+            <input type="text" id="fPrefix" placeholder=" " value="KEY" maxlength="10" />
+            <label for="fPrefix">Tiền tố (prefix)</label>
+          </div>
+          <div class="float-field">
+            <input type="number" id="fQuantity" placeholder=" " value="1" min="1" max="100" required />
+            <label for="fQuantity">Số lượng key</label>
+            <span class="field-error">Số lượng từ 1 đến 100.</span>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="select-wrap select-wrap--full">
+            <select id="fPackage" required></select>
+          </div>
+          <div class="float-field">
+            <input type="number" id="fMaxDevices" placeholder=" " value="1" min="1" max="999" />
+            <label for="fMaxDevices">Giới hạn thiết bị</label>
+            <span class="field-error">Số thiết bị tối đa từ 1 đến 999.</span>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="float-field">
+            <input type="number" id="fDuration" placeholder=" " min="0" />
+            <label for="fDuration">Thời hạn tuỳ chỉnh (ngày)</label>
+          </div>
+          <div class="float-field">
+            <input type="text" id="fNote" placeholder=" " />
+            <label for="fNote">Ghi chú (tuỳ chọn)</label>
+          </div>
+        </div>
+        <p class="form-hint">💡 Để trống "Giới hạn thiết bị" và "Thời hạn tuỳ chỉnh" thì key dùng thông tin từ gói. Nhập <b>0</b> = vĩnh viễn.</p>
+        <footer class="modal__foot">
+          <button type="button" class="btn btn--ghost" data-close-modal>Huỷ</button>
+          <button type="submit" class="btn btn--primary" id="keySubmit">
+            <span class="btn__label">Tạo Key</span>
+            <span class="btn__spinner"></span>
+          </button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══════════ MODAL: TẠO GÓI ═══════════ -->
+  <div class="modal" id="pkgModal" hidden>
+    <div class="modal__backdrop" data-close-modal></div>
+    <div class="modal__panel" role="dialog" aria-modal="true">
+      <header class="modal__head">
+        <div>
+          <h2>Tạo Gói mới</h2>
+          <p>Gói xác định thời hạn và giới hạn thiết bị mặc định cho key.</p>
+        </div>
+        <button class="icon-btn" data-close-modal aria-label="Đóng">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </header>
+      <form class="modal__body" id="pkgForm" novalidate>
+        <div class="form-row">
+          <div class="float-field">
+            <input type="text" id="pName" placeholder=" " required />
+            <label for="pName">Tên gói (VD: VIP 1 tháng)</label>
+            <span class="field-error">Vui lòng nhập tên gói.</span>
+          </div>
+          <div class="float-field">
+            <input type="number" id="pDuration" placeholder=" " min="0" required />
+            <label for="pDuration">Thời hạn (ngày, 0 = vĩnh viễn)</label>
+            <span class="field-error">Vui lòng nhập thời hạn.</span>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="float-field">
+            <input type="number" id="pMaxDevices" placeholder=" " value="1" min="1" max="999" />
+            <label for="pMaxDevices">Giới hạn thiết bị</label>
+          </div>
+          <div class="float-field">
+            <input type="number" id="pPrice" placeholder=" " min="0" />
+            <label for="pPrice">Giá bán (VNĐ, tuỳ chọn)</label>
+          </div>
+        </div>
+        <div class="form-row form-row--single">
+          <div class="float-field">
+            <input type="text" id="pNote" placeholder=" " />
+            <label for="pNote">Mô tả (tuỳ chọn)</label>
+          </div>
+        </div>
+        <footer class="modal__foot">
+          <button type="button" class="btn btn--ghost" data-close-modal>Huỷ</button>
+          <button type="submit" class="btn btn--primary" id="pkgSubmit">
+            <span class="btn__label">Tạo Gói</span>
+            <span class="btn__spinner"></span>
+          </button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══════════ MODAL: KẾT QUẢ TẠO KEY ═══════════ -->
+  <div class="modal" id="resultModal" hidden>
+    <div class="modal__backdrop" data-close-modal></div>
+    <div class="modal__panel" role="dialog" aria-modal="true">
+      <header class="modal__head">
+        <div>
+          <h2>✅ Tạo Key thành công</h2>
+          <p>Sao chép danh sách key bên dưới để gửi cho người dùng.</p>
+        </div>
+        <button class="icon-btn" data-close-modal aria-label="Đóng">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </header>
+      <div class="modal__body">
+        <div class="key-result-list" id="keyResultList"></div>
+        <footer class="modal__foot">
+          <button type="button" class="btn btn--ghost" data-close-modal>Đóng</button>
+          <button type="button" class="btn btn--primary" id="copyAllKeysBtn">
+            <svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+            Sao chép tất cả
+          </button>
+        </footer>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toasts -->
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
