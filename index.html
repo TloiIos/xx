@@ -351,6 +351,12 @@
               <h1 class="page-head__title">Quản lý <span class="text-gradient">UID</span></h1>
               <p class="page-head__sub">Xem danh sách UID đang hoạt động và gán UID cho key.</p>
             </div>
+            <div class="page-head__actions">
+              <button class="btn btn--primary" id="setAllUidBtn">
+                <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                Set UID cho tất cả key
+              </button>
+            </div>
           </div>
 
           <div class="stats-grid" style="grid-template-columns:1fr 1fr 1fr">
@@ -403,6 +409,10 @@
                   <p>Chưa có thiết bị nào đăng ký key.</p>
                 </div>
               </div>
+              <footer class="datagrid__footer">
+                <span id="uidPageInfo">Hiển thị 0–0 / 0</span>
+                <div class="pagination" id="uidPagination"></div>
+              </footer>
             </article>
 
             <article class="panel panel--activity reveal" style="--d:.16s">

@@ -26,27 +26,35 @@
     if (!rec) return "unknown";
     if (rec.status === "banned" || rec.status === "inactive") return "banned";
     if (!rec.expiresAt) return "active";
-    return rec.expiresAt > now() ? "active" : "expired";
+    // Fix: So sánh với timestamp hiện tại
+    const expiresAt = typeof rec.expiresAt === 'string' ? parseInt(rec.expiresAt) : rec.expiresAt;
+    return expiresAt > now() ? "active" : "expired";
   }
 
   const fmtDate = (ts) => {
     if (!ts) return "—";
-    if (typeof ts === 'number' && ts > 1000000000000) {
-      return new Date(ts).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    // Fix: Xử lý timestamp
+    let date;
+    if (typeof ts === 'string') {
+      date = new Date(parseInt(ts));
+    } else {
+      date = new Date(ts);
     }
-    const date = new Date(ts);
     if (isNaN(date.getTime())) return "—";
     return date.toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
   };
 
   function timeLeft(rec) {
-    if (!rec || !rec.expiresAt) return "Vĩnh viễn";
-    const ms = rec.expiresAt - now();
+    if (!rec) return "Không xác định";
+    if (!rec.expiresAt) return "Vĩnh viễn";
+    const expiresAt = typeof rec.expiresAt === 'string' ? parseInt(rec.expiresAt) : rec.expiresAt;
+    const ms = expiresAt - now();
     if (ms <= 0) return "Đã hết hạn";
-    const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5);
+    const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4);
     if (d > 0) return `Còn ${d} ngày ${h} giờ`;
-    if (h > 0) return `Còn ${h} giờ`;
-    return "Còn ít phút";
+    if (h > 0) return `Còn ${h} giờ ${m} phút`;
+    if (m > 0) return `Còn ${m} phút`;
+    return "Còn ít giây";
   }
 
   function genKey(prefix) {
@@ -56,9 +64,12 @@
     return prefix ? `${prefix.toUpperCase()}-${body}` : body;
   }
 
+  // Fix: Hàm pkgName xử lý packageId đúng cách
   const pkgName = (id) => {
     if (!id) return "—";
+    // Kiểm tra trực tiếp trong packages object
     if (packages[id]) return packages[id].name || "—";
+    // Kiểm tra nếu id là key trong packages
     for (const [pkgId, pkg] of Object.entries(packages)) {
       if (pkgId === id) return pkg.name || "—";
     }
@@ -665,6 +676,14 @@
 
     if (empty) empty.hidden = list.length > 0;
 
+    // UID page info
+    const uidInfo = document.getElementById('uidPageInfo');
+    if (uidInfo) {
+      uidInfo.textContent = list.length
+        ? `Hiển thị ${start + 1}–${Math.min(start + PAGE_SIZE, list.length)} / ${list.length}`
+        : "Hiển thị 0–0 / 0";
+    }
+
     body.innerHTML = slice.map(d => `
       <div class="dg-row dg-row--keys" style="grid-template-columns:1.5fr 1.2fr 1.2fr 0.8fr 0.6fr;" data-uid="${esc(d.uid)}">
         <span class="dg-cell" style="font-family:monospace;font-size:12px">${esc(d.uid)}</span>
@@ -728,6 +747,91 @@
       renderDevices();
     }
   });
+
+  // ── SET UID CHO TẤT CẢ KEY ─────────────────────
+  const setAllUidBtn = document.getElementById('setAllUidBtn');
+  if (setAllUidBtn) {
+    setAllUidBtn.addEventListener('click', async () => {
+      const keyList = Object.values(keys);
+      if (!keyList.length) {
+        toast('warning', 'Không có key', 'Chưa có key nào trong hệ thống.');
+        return;
+      }
+
+      // Lấy danh sách UID đã có
+      const existingUids = new Set();
+      keyList.forEach(k => {
+        if (k.devices) {
+          Object.keys(k.devices).forEach(uid => existingUids.add(uid));
+        }
+      });
+
+      if (!existingUids.size) {
+        toast('info', 'Không có UID', 'Chưa có UID nào trong hệ thống. Hãy tạo UID trước.');
+        return;
+      }
+
+      const uidList = Array.from(existingUids);
+      let totalAdded = 0;
+      let totalSkipped = 0;
+
+      // Xác nhận với người dùng
+      const confirmMsg = `Set ${uidList.length} UID cho tất cả ${keyList.length} key?\n\n` +
+        `UID: ${uidList.slice(0, 5).join(', ')}${uidList.length > 5 ? `... (+${uidList.length - 5})` : ''}\n\n` +
+        `⚠️ Mỗi key sẽ được gán tất cả UID này (nếu chưa có).`;
+      
+      if (!confirm(confirmMsg)) return;
+
+      const btn = setAllUidBtn;
+      btn.classList.add('is-loading');
+      btn.disabled = true;
+
+      try {
+        for (const key of keyList) {
+          const currentDevices = key.devices || {};
+          const maxDevices = key.maxDevices || 999;
+          const currentCount = Object.keys(currentDevices).length;
+          
+          // Kiểm tra giới hạn
+          if (currentCount >= maxDevices) {
+            totalSkipped++;
+            continue;
+          }
+
+          const newDevices = { ...currentDevices };
+          let added = 0;
+
+          // Thêm từng UID
+          for (const uid of uidList) {
+            if (added >= maxDevices - currentCount) break;
+            if (!newDevices[uid]) {
+              newDevices[uid] = true;
+              added++;
+            }
+          }
+
+          if (added > 0) {
+            const keyId = key.key || Object.keys(keys).find(id => keys[id] === key);
+            if (keyId) {
+              await KeyAPI.updateKey(keyId, { devices: newDevices });
+              keys[keyId].devices = newDevices;
+              totalAdded += added;
+            }
+          } else {
+            totalSkipped++;
+          }
+        }
+
+        renderAll();
+        toast('success', 'Đã set UID', `Đã thêm ${totalAdded} UID vào các key. Bỏ qua ${totalSkipped} key (đã đầy).`);
+      } catch (err) {
+        toast('danger', 'Lỗi', err.message);
+      } finally {
+        btn.classList.remove('is-loading');
+        btn.disabled = false;
+      }
+    });
+  }
 
   // Xoá UID
   document.addEventListener('click', async (e) => {
@@ -1094,8 +1198,18 @@
       if (btn) { btn.classList.add("is-loading"); btn.disabled = true; }
       if (result) result.hidden = true;
       try {
-        const rec = await KeyAPI.getKey(val);
-        if (!rec || !rec.key) {
+        // Fix: Tìm key trong danh sách đã load thay vì gọi API
+        let foundKey = null;
+        let foundId = null;
+        for (const [id, data] of Object.entries(keys)) {
+          if (data.key === val || id === val) {
+            foundKey = data;
+            foundId = id;
+            break;
+          }
+        }
+
+        if (!foundKey) {
           if (result) {
             result.innerHTML = `
               <div class="check-card check-card--invalid">
@@ -1106,8 +1220,8 @@
             result.hidden = false;
           }
         } else {
-          const st = keyStatus(rec);
-          const deviceCount = Object.keys(rec.devices || {}).length;
+          const st = keyStatus(foundKey);
+          const deviceCount = Object.keys(foundKey.devices || {}).length;
           const map = {
             active: { cls: "valid", icon: "✅", label: "Key hợp lệ — Còn hạn" },
             expired: { cls: "expired", icon: "⏱", label: "Key đã hết hạn" },
@@ -1120,14 +1234,14 @@
                 <div class="check-card__icon">${m.icon}</div>
                 <h3>${m.label}</h3>
                 <ul class="check-card__meta">
-                  <li><span>Key</span><b><code>${esc(rec.key)}</code></b></li>
-                  <li><span>Gói</span><b>${esc(pkgName(rec.packageId || rec.package))}</b></li>
-                  <li><span>Ngày tạo</span><b>${fmtDate(rec.createdAt)}</b></li>
-                  <li><span>Hết hạn</span><b>${rec.expiresAt ? fmtDate(rec.expiresAt) : "Vĩnh viễn"}</b></li>
-                  <li><span>Thời gian còn lại</span><b>${timeLeft(rec)}</b></li>
-                  <li><span>Thiết bị</span><b>${deviceCount} / ${rec.maxDevices || 1}</b></li>
-                  <li><span>Giới hạn thiết bị</span><b>${rec.maxDevices || 1}</b></li>
-                  ${rec.note ? `<li><span>Ghi chú</span><b>${esc(rec.note)}</b></li>` : ""}
+                  <li><span>Key</span><b><code>${esc(foundKey.key)}</code></b></li>
+                  <li><span>Gói</span><b>${esc(pkgName(foundKey.packageId || foundKey.package))}</b></li>
+                  <li><span>Ngày tạo</span><b>${fmtDate(foundKey.createdAt)}</b></li>
+                  <li><span>Hết hạn</span><b>${foundKey.expiresAt ? fmtDate(foundKey.expiresAt) : "Vĩnh viễn"}</b></li>
+                  <li><span>Thời gian còn lại</span><b>${timeLeft(foundKey)}</b></li>
+                  <li><span>Thiết bị</span><b>${deviceCount} / ${foundKey.maxDevices || 1}</b></li>
+                  <li><span>Giới hạn thiết bị</span><b>${foundKey.maxDevices || 1}</b></li>
+                  ${foundKey.note ? `<li><span>Ghi chú</span><b>${esc(foundKey.note)}</b></li>` : ""}
                 </ul>
               </div>`;
             result.hidden = false;
