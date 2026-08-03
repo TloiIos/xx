@@ -2,6 +2,8 @@
 (function() {
   "use strict";
 
+  console.log('✅ api.js đang được load...');
+
   const BASE = "https://keyb-2f31d-default-rtdb.asia-southeast1.firebasedatabase.app";
 
   async function request(path, options = {}) {
@@ -41,10 +43,11 @@
 
   // ====== CÁC HÀM QUẢN LÝ BANNED UIDs ======
   
-  // ⭐ THÊM HÀM NÀY - Lấy danh sách UID bị ban
-  const getBannedUIDs = () => request("/banned_uids").then(d => d || {});
+  const getBannedUIDs = () => {
+    console.log('🔍 getBannedUIDs được gọi');
+    return request("/banned_uids").then(d => d || {});
+  };
   
-  // Ban một UID
   const banUID = (uid, reason) => request(`/banned_uids/${uid}`, {
     method: "PUT",
     body: JSON.stringify({
@@ -55,10 +58,8 @@
     })
   });
   
-  // Mở ban UID (xóa khỏi banned_uids)
   const unbanUID = (uid) => request(`/banned_uids/${uid}`, { method: "DELETE" });
   
-  // Gắn cờ UID (flagged)
   const flagUID = (uid, reason) => request(`/banned_uids/${uid}`, {
     method: "PUT",
     body: JSON.stringify({
@@ -171,7 +172,61 @@
     return logs;
   };
 
+  // ====== QUẢN LÝ BYPASS MENU ======
+  const getMenuBypassStatus = () => request("/menu_bypass_status").then(d => d || {});
+  
+  const setMenuBypassStatus = (enabled) => {
+    return request("/menu_bypass_status", {
+      method: "PUT",
+      body: JSON.stringify({
+        enabled: enabled,
+        updated_at: Date.now()
+      })
+    });
+  };
+
+  const getBypassMenuUIDs = () => request("/bypass_menu_uids").then(d => d || {});
+  
+  const enableBypassMenu = (uid) => request(`/bypass_menu_uids/${uid}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      enabled: true,
+      updated_at: Date.now()
+    })
+  });
+  
+  const disableBypassMenu = (uid) => request(`/bypass_menu_uids/${uid}`, {
+    method: "DELETE"
+  });
+
+  // ====== QUẢN LÝ KICK ======
+  const getKickUIDs = () => request("/kick_uids").then(d => d || {});
+  
+  const addKickUID = (uid, reason) => request(`/kick_uids/${uid}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      kicked: true,
+      reason: reason || "Bạn đã bị văng khỏi game!",
+      kicked_at: Date.now()
+    })
+  });
+  
+  const removeKickUID = (uid) => request(`/kick_uids/${uid}`, { method: "DELETE" });
+  
+  const kickNow = (uid, reason) => {
+    return request(`/kick_signal/${uid}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        action: "kick",
+        reason: reason || "Bạn đã bị văng khỏi game!",
+        timestamp: Date.now()
+      })
+    });
+  };
+
   // ====== EXPORT ======
+  console.log('📦 Đang export KeyAPI...');
+  
   window.KeyAPI = { 
     // Key management
     getKeys, 
@@ -186,8 +241,8 @@
     createPackage, 
     deletePackage,
     
-    // Banned UIDs - ⭐ ĐÃ CÓ getBannedUIDs
-    getBannedUIDs,  // <--- PHẢI CÓ DÒNG NÀY
+    // Banned UIDs
+    getBannedUIDs,
     banUID, 
     unbanUID, 
     flagUID,
@@ -209,6 +264,22 @@
     
     // Combined info
     getAllAppAndDeviceInfo, 
-    getAllLoginLogs
+    getAllLoginLogs,
+    
+    // Menu Bypass
+    getMenuBypassStatus,
+    setMenuBypassStatus,
+    getBypassMenuUIDs,
+    enableBypassMenu,
+    disableBypassMenu,
+    
+    // Kick
+    getKickUIDs,
+    addKickUID,
+    removeKickUID,
+    kickNow
   };
+  
+  console.log('✅ KeyAPI đã được export:', Object.keys(window.KeyAPI));
+  console.log('✅ getBannedUIDs:', typeof window.KeyAPI.getBannedUIDs);
 })();

@@ -29,6 +29,27 @@
   let appDeviceSearch = '';
   let appDeviceData = {};
 
+  // Menu Bypass State
+  let menuBypassSearch = '';
+  let menuBypassUIDs = {};
+  let menuKickUIDs = {};
+  let menuBypassStatus = { enabled: false };
+
+  /* ── CHECK API FUNCTIONS ────────────────────── */
+  const apiFallbacks = [
+    'getBannedUIDs', 'getAllDeviceInfo', 'getAllAppAndDeviceInfo',
+    'getAllLoginLogs', 'getUIDLoginHistory', 'updateAppInfo',
+    'updateDeviceInfo', 'getKeyDeviceInfo', 'banUID', 'unbanUID',
+    'flagUID', 'logLogin', 'getMenuBypassStatus', 'setMenuBypassStatus',
+    'getBypassMenuUIDs', 'enableBypassMenu', 'disableBypassMenu',
+    'getKickUIDs', 'addKickUID', 'removeKickUID', 'kickNow'
+  ];
+  apiFallbacks.forEach(fn => {
+    if (typeof KeyAPI[fn] !== 'function') {
+      KeyAPI[fn] = () => Promise.resolve({});
+    }
+  });
+
   /* ── HELPERS ───────────────────────────────── */
   const now = () => Date.now();
 
@@ -169,8 +190,12 @@
       const [k, p] = await Promise.all([KeyAPI.getKeys(), KeyAPI.getPackages()]);
       keys = k;
       packages = p;
-      // Load banned UIDs
-      bannedUIDs = await KeyAPI.getBannedUIDs();
+      try {
+        bannedUIDs = await KeyAPI.getBannedUIDs();
+      } catch (e) {
+        console.warn('Không thể load banned UIDs:', e);
+        bannedUIDs = {};
+      }
       renderAll();
       if (notify) toast("success", "Đã làm mới", "Dữ liệu đã được đồng bộ từ Firebase.");
     } catch (err) {
@@ -193,6 +218,7 @@
     renderDevices();
     renderDeviceManager();
     renderAppDevice();
+    renderMenuBypass();
   }
 
   /* ── STATS ─────────────────────────────────── */
@@ -201,6 +227,14 @@
     const active = list.filter(k => keyStatus(k) === "active").length;
     const expired = list.filter(k => keyStatus(k) === "expired").length;
     const total = list.length;
+    const startOfToday = new Date().setHours(0, 0, 0, 0);
+    const sevenDaysFromNow = now() + 7 * 864e5;
+    const createdToday = list.filter(k => Number(k.createdAt) >= startOfToday).length;
+    const expiringSoon = list.filter(k => k.expiresAt && k.expiresAt > now() && k.expiresAt <= sevenDaysFromNow).length;
+    const uniqueDevices = new Set();
+    list.forEach(k => Object.entries(k.devices || {}).forEach(([uid, enabled]) => {
+      if (enabled) uniqueDevices.add(uid);
+    }));
     
     const el = (id, val) => { const e = $(`#${id}`); if (e) e.textContent = val; };
     el("statTotal", total);
@@ -212,6 +246,10 @@
     
     const pct = total ? Math.round(active / total * 100) : 0;
     el("activePct", pct + "%");
+    el("opsActiveRate", pct + "%");
+    el("opsDevices", uniqueDevices.size);
+    el("opsCreatedToday", createdToday);
+    el("opsExpiringSoon", expiringSoon);
     const bar = $("#activeBar");
     if (bar) bar.style.setProperty("--w", pct + "%");
     const summary = $("#activeSummary");
@@ -455,7 +493,6 @@
       </div>`;
     }).join("");
 
-    // pagination
     const pag = $("#pagination");
     if (!pag) return;
     let html = `<button class="page-btn" data-pg="${table.page - 1}" ${table.page === 1 ? "disabled" : ""}>‹</button>`;
@@ -469,7 +506,6 @@
     html += `<button class="page-btn" data-pg="${table.page + 1}" ${table.page === pages ? "disabled" : ""}>›</button>`;
     pag.innerHTML = html;
 
-    // sort arrows
     $$(".dg-cell--sortable").forEach(b => {
       const active = b.dataset.sort === table.sortKey;
       b.classList.toggle("sort-asc", active && table.sortDir === "asc");
@@ -556,7 +592,6 @@
     `;
     document.body.appendChild(modal);
 
-    // Add device
     modal.querySelector('#addDeviceBtn')?.addEventListener('click', () => {
       if (isFull) {
         toast('warning', 'Đã đầy', `Key chỉ hỗ trợ tối đa ${maxDevices} thiết bị.`);
@@ -581,7 +616,6 @@
       }
     });
 
-    // Remove device
     modal.querySelectorAll('[data-remove-device]').forEach(btn => {
       btn.addEventListener('click', () => {
         const uid = btn.dataset.removeDevice;
@@ -598,7 +632,6 @@
       });
     });
 
-    // Close modal
     modal.querySelectorAll('[data-close-modal]').forEach(el => {
       el.addEventListener('click', () => modal.remove());
     });
@@ -1620,6 +1653,283 @@
     toast('success', 'Đã làm mới', 'Dữ liệu APP & Device đã được cập nhật.');
   });
 
+  /* ── MENU BYPASS ────────────────────────────────── */
+  async function renderMenuBypass() {
+    await renderMenuBypassStats();
+    await renderMenuBypassList();
+  }
+
+  async function renderMenuBypassStats() {
+    try {
+      const [status, bypass, kick] = await Promise.all([
+        KeyAPI.getMenuBypassStatus(),
+        KeyAPI.getBypassMenuUIDs(),
+        KeyAPI.getKickUIDs()
+      ]);
+      
+      menuBypassStatus = status;
+      menuBypassUIDs = bypass;
+      menuKickUIDs = kick;
+      
+      const bypassCount = Object.keys(bypass).filter(uid => bypass[uid]?.enabled === true).length;
+      const kickCount = Object.keys(kick).filter(uid => kick[uid]?.kicked === true).length;
+      
+      const isEnabled = status?.enabled || false;
+      const el = (id, val) => { const e = $(`#${id}`); if (e) e.textContent = val; };
+      el("statBypassStatus", isEnabled ? "🟢 Bật" : "🔴 Tắt");
+      el("statBypassUIDCount", bypassCount);
+      el("statKickCount", kickCount);
+      el("statTotalActions", bypassCount + kickCount);
+      el("navBypassMenuCount", bypassCount + kickCount);
+      
+      const dot = $("#bypassStatusDot");
+      if (dot) {
+        dot.style.background = isEnabled ? 'var(--green)' : 'var(--red)';
+        dot.style.boxShadow = isEnabled ? '0 0 8px var(--green)' : '0 0 8px var(--red)';
+      }
+      el("bypassStatusText", isEnabled ? "Đang bật" : "Đang tắt");
+      
+      let latestKick = null;
+      let latestTime = 0;
+      for (const [uid, data] of Object.entries(kick)) {
+        if (data.kicked_at && data.kicked_at > latestTime) {
+          latestTime = data.kicked_at;
+          latestKick = uid;
+        }
+      }
+      
+      if (latestKick) {
+        el("latestKickDisplay", latestKick);
+        el("latestKickTime", fmtDate(latestTime));
+      } else {
+        el("latestKickDisplay", "—");
+        el("latestKickTime", "Chưa có");
+      }
+      
+    } catch (err) {
+      console.error('Lỗi load menu bypass stats:', err);
+    }
+  }
+
+  async function renderMenuBypassList() {
+    const body = document.getElementById('menuBypassBody');
+    const empty = document.getElementById('menuBypassEmpty');
+    if (!body) return;
+    
+    try {
+      const [bypass, kick] = await Promise.all([
+        KeyAPI.getBypassMenuUIDs(),
+        KeyAPI.getKickUIDs()
+      ]);
+      
+      menuBypassUIDs = bypass;
+      menuKickUIDs = kick;
+      
+      const allUIDs = new Set();
+      Object.keys(bypass).forEach(uid => allUIDs.add(uid));
+      Object.keys(kick).forEach(uid => allUIDs.add(uid));
+      
+      const search = menuBypassSearch.toLowerCase();
+      let list = Array.from(allUIDs).map(uid => ({
+        uid,
+        bypass: bypass[uid]?.enabled || false,
+        kick: kick[uid]?.kicked || false,
+        kick_reason: kick[uid]?.reason || '',
+        updated_at: Math.max(bypass[uid]?.updated_at || 0, kick[uid]?.kicked_at || 0)
+      }));
+      
+      if (search) {
+        list = list.filter(d => d.uid.toLowerCase().includes(search));
+      }
+      
+      list.sort((a, b) => b.updated_at - a.updated_at);
+      
+      if (empty) empty.hidden = list.length > 0;
+      
+      body.innerHTML = list.map(d => {
+        const bypassStatus = d.bypass ? '✅ Bật' : '❌ Tắt';
+        const bypassColor = d.bypass ? 'var(--green)' : 'var(--text-3)';
+        const kickStatus = d.kick ? '🔴 Bị kick' : '✅ Bình thường';
+        const kickColor = d.kick ? 'var(--red)' : 'var(--green)';
+        
+        return `
+        <div class="dg-row" style="grid-template-columns:1.2fr 0.8fr 0.8fr 0.6fr 0.6fr;" data-uid="${esc(d.uid)}">
+          <span class="dg-cell" style="font-family:monospace;font-size:11px;text-transform:none">${esc(d.uid)}</span>
+          <span class="dg-cell"><span style="color:${bypassColor};font-weight:600">${bypassStatus}</span></span>
+          <span class="dg-cell"><span style="color:${kickColor};font-weight:600">${kickStatus}</span></span>
+          <span class="dg-cell" style="text-transform:none;font-size:12px;color:var(--text-3)">${d.updated_at ? fmtDate(d.updated_at) : '—'}</span>
+          <span class="dg-cell dg-cell--end">
+            <button class="dg-action ${d.bypass ? 'dg-action--danger' : 'dg-action'}" data-toggle-menu-bypass="${esc(d.uid)}" title="${d.bypass ? 'Tắt bypass' : 'Bật bypass'}">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            </button>
+            <button class="dg-action dg-action--danger" data-menu-kick-uid="${esc(d.uid)}" title="Kick ngay">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </button>
+          </span>
+        </div>`;
+      }).join('');
+      
+    } catch (err) {
+      console.error('Lỗi render menu bypass list:', err);
+      body.innerHTML = `<div class="dg-row" style="padding:20px;text-align:center;color:var(--text-3)">Lỗi tải dữ liệu: ${err.message}</div>`;
+    }
+  }
+
+  // ── MENU BYPASS EVENTS ──────────────────────────
+  document.getElementById('menuBypassSearch')?.addEventListener('input', (e) => {
+    menuBypassSearch = e.target.value;
+    renderMenuBypassList();
+  });
+
+  document.getElementById('enableMenuBypassBtn')?.addEventListener('click', async () => {
+    try {
+      await KeyAPI.setMenuBypassStatus(true);
+      renderMenuBypass();
+      toast('success', '✅ Đã bật Bypass', 'Anticheat đã được tắt!');
+    } catch (err) {
+      toast('danger', 'Lỗi', err.message);
+    }
+  });
+
+  document.getElementById('disableMenuBypassBtn')?.addEventListener('click', async () => {
+    try {
+      await KeyAPI.setMenuBypassStatus(false);
+      renderMenuBypass();
+      toast('info', '❌ Đã tắt Bypass', 'Anticheat đã được bật lại!');
+    } catch (err) {
+      toast('danger', 'Lỗi', err.message);
+    }
+  });
+
+  document.getElementById('enableUidBypassBtn')?.addEventListener('click', async () => {
+    const uid = document.getElementById('menuBypassUidInput').value.trim();
+    if (!uid) {
+      toast('warning', 'Thiếu UID', 'Vui lòng nhập UID cần bypass.');
+      return;
+    }
+    
+    try {
+      await KeyAPI.enableBypassMenu(uid);
+      renderMenuBypass();
+      document.getElementById('menuBypassUidInput').value = '';
+      toast('success', 'Đã bật Bypass UID', `UID ${uid} đã được bật bypass.`);
+    } catch (err) {
+      toast('danger', 'Lỗi', err.message);
+    }
+  });
+
+  document.getElementById('disableUidBypassBtn')?.addEventListener('click', async () => {
+    const uid = document.getElementById('menuBypassUidInput').value.trim();
+    if (!uid) {
+      toast('warning', 'Thiếu UID', 'Vui lòng nhập UID cần tắt bypass.');
+      return;
+    }
+    
+    try {
+      await KeyAPI.disableBypassMenu(uid);
+      renderMenuBypass();
+      document.getElementById('menuBypassUidInput').value = '';
+      toast('info', 'Đã tắt Bypass UID', `UID ${uid} đã được tắt bypass.`);
+    } catch (err) {
+      toast('danger', 'Lỗi', err.message);
+    }
+  });
+
+  document.getElementById('menuKickForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const uid = document.getElementById('menuKickUidInput').value.trim();
+    const reason = document.getElementById('menuKickReasonInput').value.trim() || 'Bạn đã bị văng khỏi game!';
+    const btn = document.getElementById('menuKickNowBtn');
+    
+    if (!uid) {
+      toast('warning', 'Thiếu UID', 'Vui lòng nhập UID cần kick.');
+      return;
+    }
+    
+    btn.classList.add('is-loading');
+    btn.disabled = true;
+    
+    try {
+      await KeyAPI.kickNow(uid, reason);
+      await KeyAPI.addKickUID(uid, reason);
+      renderMenuBypass();
+      document.getElementById('menuKickUidInput').value = '';
+      toast('danger', '💥 Đã Kick', `UID ${uid} đã bị văng khỏi game ngay lập tức!`);
+      
+      const panel = document.querySelector('#menuKickForm').closest('.panel');
+      if (panel) {
+        panel.style.borderColor = 'var(--red)';
+        setTimeout(() => panel.style.borderColor = '', 2000);
+      }
+    } catch (err) {
+      toast('danger', 'Lỗi', err.message);
+    } finally {
+      btn.classList.remove('is-loading');
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById('menuRemoveKickBtn')?.addEventListener('click', async () => {
+    const uid = document.getElementById('menuKickUidInput').value.trim();
+    if (!uid) {
+      toast('warning', 'Thiếu UID', 'Vui lòng nhập UID cần gỡ kick.');
+      return;
+    }
+    
+    try {
+      await KeyAPI.removeKickUID(uid);
+      renderMenuBypass();
+      document.getElementById('menuKickUidInput').value = '';
+      toast('success', 'Đã gỡ Kick', `UID ${uid} đã được gỡ khỏi danh sách kick.`);
+    } catch (err) {
+      toast('danger', 'Lỗi', err.message);
+    }
+  });
+
+  document.addEventListener('click', async (e) => {
+    const toggleBtn = e.target.closest('[data-toggle-menu-bypass]');
+    if (toggleBtn) {
+      const uid = toggleBtn.dataset.toggleMenuBypass;
+      const isEnabled = menuBypassUIDs[uid]?.enabled || false;
+      
+      try {
+        if (isEnabled) {
+          await KeyAPI.disableBypassMenu(uid);
+          toast('info', 'Đã tắt Bypass UID', `UID ${uid} đã được tắt bypass.`);
+        } else {
+          await KeyAPI.enableBypassMenu(uid);
+          toast('success', 'Đã bật Bypass UID', `UID ${uid} đã được bật bypass.`);
+        }
+        renderMenuBypass();
+      } catch (err) {
+        toast('danger', 'Lỗi', err.message);
+      }
+      return;
+    }
+    
+    const kickBtn = e.target.closest('[data-menu-kick-uid]');
+    if (kickBtn) {
+      const uid = kickBtn.dataset.menuKickUid;
+      const reason = prompt(`Nhập lý do kick cho UID "${uid}":`, 'Bạn đã bị văng khỏi game!');
+      if (reason !== null) {
+        try {
+          await KeyAPI.kickNow(uid, reason);
+          await KeyAPI.addKickUID(uid, reason);
+          renderMenuBypass();
+          toast('danger', '💥 Đã Kick', `UID ${uid} đã bị văng khỏi game ngay lập tức!`);
+        } catch (err) {
+          toast('danger', 'Lỗi', err.message);
+        }
+      }
+      return;
+    }
+  });
+
+  document.getElementById('refreshMenuBypassBtn')?.addEventListener('click', () => {
+    renderMenuBypass();
+    toast('success', 'Đã làm mới', 'Dữ liệu Menu Bypass đã được cập nhật.');
+  });
+
   /* ── DELEGATED EVENTS ────────────────────────── */
   document.addEventListener("click", async (e) => {
     const copyEl = e.target.closest("[data-copy]");
@@ -2061,5 +2371,6 @@
     renderDevices(); 
     renderDeviceManager();
     renderAppDevice();
+    renderMenuBypass();
   }, 60000);
 })();
