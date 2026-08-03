@@ -11,6 +11,140 @@
   <link rel="stylesheet" href="css/main.css" />
   <link rel="stylesheet" href="css/components.css" />
   <link rel="stylesheet" href="css/keymanager.css" />
+  
+  <style>
+    /* Fix cho các nút action */
+    .dg-actions {
+      display: flex !important;
+      gap: 4px !important;
+      flex-wrap: wrap !important;
+      justify-content: flex-end !important;
+      align-items: center !important;
+    }
+    .dg-actions .dg-action {
+      padding: 4px 6px !important;
+      min-width: 28px !important;
+      height: 28px !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      border-radius: 4px !important;
+      background: var(--bg-2) !important;
+      border: 1px solid var(--border) !important;
+      transition: all 0.2s !important;
+    }
+    .dg-actions .dg-action:hover {
+      background: var(--bg-3) !important;
+      border-color: var(--text-3) !important;
+    }
+    .dg-actions .dg-action--danger:hover {
+      background: var(--red) !important;
+      border-color: var(--red) !important;
+      color: #fff !important;
+    }
+    .dg-actions .dg-action svg {
+      width: 16px !important;
+      height: 16px !important;
+      display: block !important;
+    }
+    
+    /* Device badge */
+    .device-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+    }
+    .device-badge--full {
+      background: var(--red-alpha);
+      border-color: var(--red);
+      color: var(--red);
+    }
+    
+    /* UID mới nhất */
+    .latest-uid {
+      display: block;
+      font-size: 10px;
+      color: var(--text-3);
+      margin-top: 2px;
+      font-family: monospace;
+    }
+    .latest-uid .uid-star {
+      color: var(--amber);
+    }
+    
+    /* Key code */
+    .key-code {
+      font-family: 'Space Grotesk', monospace;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: color 0.2s;
+      background: var(--bg-2);
+      padding: 2px 8px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+    .key-code:hover {
+      color: var(--cyan);
+    }
+    
+    /* Check card */
+    .check-card {
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      margin-top: 16px;
+    }
+    .check-card--valid {
+      border-color: var(--green);
+      background: var(--green-alpha);
+    }
+    .check-card--expired {
+      border-color: var(--amber);
+      background: var(--amber-alpha);
+    }
+    .check-card--invalid {
+      border-color: var(--red);
+      background: var(--red-alpha);
+    }
+    .check-card__icon {
+      font-size: 32px;
+      text-align: center;
+    }
+    .check-card h3 {
+      text-align: center;
+      margin: 8px 0 12px;
+    }
+    .check-card__meta {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .check-card__meta li {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .check-card__meta li:last-child {
+      border-bottom: none;
+    }
+    .check-card__meta li span {
+      color: var(--text-3);
+    }
+    .check-card__meta li b {
+      font-weight: 600;
+    }
+    .check-card__meta li code {
+      font-family: 'Space Grotesk', monospace;
+      font-size: 12px;
+    }
+  </style>
 </head>
 <body>
 
@@ -251,7 +385,7 @@
               <div class="table-tools">
                 <div class="field field--search">
                   <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                  <input type="text" id="tableSearch" placeholder="Tìm key, ghi chú…" autocomplete="off" />
+                  <input type="text" id="tableSearch" placeholder="Tìm key, UID, ghi chú…" autocomplete="off" />
                 </div>
                 <div class="select-wrap">
                   <select id="statusFilter" aria-label="Lọc theo trạng thái">
