@@ -1,4 +1,4 @@
-// app.js - Fix lỗi tìm kiếm, sắp xếp và thêm UID mới nhất
+// app.js - Cập nhật với tab UID
 (() => {
   "use strict";
 
@@ -10,7 +10,9 @@
   let keys = {};
   let packages = {};
   const table = { search: "", status: "all", pkg: "all", sortKey: "createdAt", sortDir: "desc", page: 1 };
+  const uidTable = { search: "", status: "all", page: 1 };
   const PAGE_SIZE = 10;
+  const UID_PAGE_SIZE = 15;
   let lastCreatedKeys = [];
 
   /* ── HELPERS ───────────────────────────────── */
@@ -59,12 +61,10 @@
     return "—";
   };
 
-  // Lấy UID mới nhất (cái cuối cùng trong danh sách devices)
   const getLatestUID = (devices) => {
     if (!devices || typeof devices !== 'object') return null;
     const deviceKeys = Object.keys(devices);
     if (deviceKeys.length === 0) return null;
-    // Trả về UID cuối cùng (mới nhất)
     return deviceKeys[deviceKeys.length - 1];
   };
 
@@ -120,6 +120,11 @@
     $$(".nav-item[data-page]").forEach(n => n.classList.toggle("is-active", n.dataset.page === pageId));
     document.body.classList.remove("sidebar-open");
     $("#sidebar")?.classList.remove("is-open");
+    
+    // Refresh UID list khi vào tab UID
+    if (pageId === "uid") {
+      renderUIDList();
+    }
   }
 
   $$(".nav-item[data-page]").forEach(item => {
@@ -138,10 +143,6 @@
       const [k, p] = await Promise.all([KeyAPI.getKeys(), KeyAPI.getPackages()]);
       keys = k;
       packages = p;
-      
-      console.log('🔑 Keys loaded:', Object.keys(keys).length);
-      console.log('📦 Packages loaded:', Object.keys(packages).length);
-      
       renderAll();
       if (notify) toast("success", "Đã làm mới", "Dữ liệu đã được đồng bộ từ Firebase.");
     } catch (err) {
@@ -161,6 +162,7 @@
     renderPkgGrid();
     renderPkgFilters();
     renderTable();
+    renderUIDList();
   }
 
   /* ── STATS ─────────────────────────────────── */
@@ -170,6 +172,12 @@
     const expired = list.filter(k => keyStatus(k) === "expired").length;
     const total = list.length;
     
+    // Đếm tổng số UID
+    let totalUID = 0;
+    list.forEach(k => {
+      if (k.devices) totalUID += Object.keys(k.devices).length;
+    });
+    
     const el = (id, val) => { const e = $(`#${id}`); if (e) e.textContent = val; };
     el("statTotal", total);
     el("statActive", active);
@@ -177,6 +185,7 @@
     el("statPackages", Object.keys(packages).length);
     el("navKeyCount", total);
     el("navPkgCount", Object.keys(packages).length);
+    el("navUIDCount", totalUID);
     
     const pct = total ? Math.round(active / total * 100) : 0;
     el("activePct", pct + "%");
@@ -304,7 +313,7 @@
     }
   }
 
-  /* ── DATAGRID ──────────────────────────────── */
+  /* ── DATAGRID KEYS ──────────────────────────────── */
   function getFilteredKeys() {
     let list = Object.entries(keys).map(([id, k]) => ({ 
       id, 
@@ -317,7 +326,6 @@
       _latestUID: getLatestUID(k.devices)
     }));
     
-    // Tìm kiếm - Fix lỗi tìm kiếm
     const q = table.search.trim().toLowerCase();
     if (q) {
       list = list.filter(k => {
@@ -327,7 +335,6 @@
           k._packageName.toLowerCase(),
           (k.packageId || "").toLowerCase()
         ];
-        // Thêm tìm kiếm trong devices
         if (k.devices) {
           Object.keys(k.devices).forEach(uid => {
             searchFields.push(uid.toLowerCase());
@@ -337,18 +344,15 @@
       });
     }
     
-    // Lọc theo trạng thái
     if (table.status !== "all") {
       list = list.filter(k => k._status === table.status);
     }
     
-    // Lọc theo gói
     if (table.pkg !== "all") {
       const pkgId = table.pkg;
       list = list.filter(k => (k.packageId || k.package) === pkgId);
     }
     
-    // Sắp xếp
     list.sort((a, b) => {
       let va = a[table.sortKey];
       let vb = b[table.sortKey];
@@ -373,7 +377,7 @@
       if (typeof va === "string" && typeof vb === "string") {
         r = va.localeCompare(vb);
       } else {
-        r = (va as number) - (vb as number);
+        r = va - vb;
       }
       
       return table.sortDir === "asc" ? r : -r;
@@ -425,7 +429,7 @@
       <div class="dg-row dg-row--keys" data-key-id="${esc(k.id)}">
         <span class="dg-cell dg-id">
           <code class="key-code" data-copy="${esc(keyDisplay)}" title="Nhấn để sao chép">${esc(keyDisplay)}</code>
-          ${latestUID ? `<span style="display:block;font-size:10px;color:var(--text-3);margin-top:2px">🆕 ${esc(latestUID.substring(0, 12))}...</span>` : ''}
+          ${latestUID ? `<span class="latest-uid"><span class="uid-star">⭐</span> ${esc(latestUID.substring(0, 12))}...</span>` : ''}
         </span>
         <span class="dg-cell dg-product">${esc(k._packageName)}</span>
         <span class="dg-cell dg-date">${fmtDate(k.createdAt)}</span>
@@ -436,18 +440,18 @@
           </span>
         </span>
         <span class="dg-cell">${badge}</span>
-        <span class="dg-cell dg-cell--end dg-actions" style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">
-          <button class="dg-action" data-view-devices="${esc(k.id)}" title="Xem thiết bị" style="padding:4px 6px;">
-            <svg viewBox="0 0 24 24" width="16" height="16"><rect x="5" y="8" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>
+        <span class="dg-cell dg-cell--end dg-actions">
+          <button class="dg-action" data-view-devices="${esc(k.id)}" title="Xem thiết bị">
+            <svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>
           </button>
-          <button class="dg-action" data-copy="${esc(keyDisplay)}" title="Sao chép key" style="padding:4px 6px;">
-            <svg viewBox="0 0 24 24" width="16" height="16"><rect x="9" y="9" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+          <button class="dg-action" data-copy="${esc(keyDisplay)}" title="Sao chép key">
+            <svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
           </button>
-          <button class="dg-action" data-ban="${esc(k.id)}" title="${st === "banned" ? "Mở khoá key" : "Khoá key"}" style="padding:4px 6px;">
-            <svg viewBox="0 0 24 24" width="16" height="16"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 018 0v3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+          <button class="dg-action" data-ban="${esc(k.id)}" title="${st === "banned" ? "Mở khoá key" : "Khoá key"}">
+            <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 018 0v3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
           </button>
-          <button class="dg-action dg-action--danger" data-del="${esc(k.id)}" title="Xoá key" style="padding:4px 6px;">
-            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M6.5 7l1 13h9l1-13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <button class="dg-action dg-action--danger" data-del="${esc(k.id)}" title="Xoá key">
+            <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M6.5 7l1 13h9l1-13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
         </span>
       </div>`;
@@ -527,7 +531,160 @@
     });
   });
 
-  // ── MODAL: XEM THIẾT BỊ ─────────────────────
+  /* ── UID LIST ──────────────────────────────── */
+  function renderUIDList() {
+    const body = $("#uidBody");
+    if (!body) return;
+    
+    // Lấy tất cả UID từ tất cả keys
+    let allUIDs = [];
+    Object.entries(keys).forEach(([keyId, keyData]) => {
+      if (keyData.devices && typeof keyData.devices === 'object') {
+        Object.entries(keyData.devices).forEach(([uid, active]) => {
+          allUIDs.push({
+            uid: uid,
+            keyId: keyId,
+            keyDisplay: keyData.key || keyId,
+            packageName: pkgName(keyData.packageId || keyData.package),
+            active: active,
+            maxDevices: keyData.maxDevices || 1,
+            totalDevices: Object.keys(keyData.devices || {}).length
+          });
+        });
+      }
+    });
+    
+    // Sắp xếp UID theo thời gian thêm (mới nhất trước)
+    // Vì không có timestamp, sắp xếp theo thứ tự trong danh sách (giả định)
+    allUIDs.reverse();
+    
+    // Tìm kiếm
+    const q = uidTable.search.trim().toLowerCase();
+    if (q) {
+      allUIDs = allUIDs.filter(u => 
+        u.uid.toLowerCase().includes(q) || 
+        u.keyDisplay.toLowerCase().includes(q) ||
+        u.packageName.toLowerCase().includes(q)
+      );
+    }
+    
+    // Lọc theo trạng thái
+    if (uidTable.status !== "all") {
+      allUIDs = allUIDs.filter(u => {
+        if (uidTable.status === "active") return u.active === true;
+        if (uidTable.status === "inactive") return u.active === false;
+        return true;
+      });
+    }
+    
+    const subtitle = $("#uidSubtitle");
+    if (subtitle) subtitle.textContent = `${allUIDs.length} UID`;
+    
+    const empty = $("#uidEmpty");
+    if (empty) empty.hidden = allUIDs.length > 0;
+    
+    if (allUIDs.length === 0) {
+      body.innerHTML = '';
+      return;
+    }
+    
+    // Phân trang
+    const pages = Math.max(1, Math.ceil(allUIDs.length / UID_PAGE_SIZE));
+    if (uidTable.page > pages) uidTable.page = pages;
+    const start = (uidTable.page - 1) * UID_PAGE_SIZE;
+    const slice = allUIDs.slice(start, start + UID_PAGE_SIZE);
+    
+    body.innerHTML = slice.map(u => `
+      <div class="dg-row dg-row--uid">
+        <span class="dg-cell dg-uid" style="font-family:monospace;font-size:13px">
+          <code data-copy="${esc(u.uid)}" style="cursor:pointer;background:var(--bg-2);padding:2px 8px;border-radius:4px;">${esc(u.uid)}</code>
+          ${u.active ? ' ✅' : ''}
+        </span>
+        <span class="dg-cell">
+          <code class="key-code" data-copy="${esc(u.keyDisplay)}" title="Nhấn để sao chép">${esc(u.keyDisplay)}</code>
+        </span>
+        <span class="dg-cell">${esc(u.packageName)}</span>
+        <span class="dg-cell">
+          <span class="status-badge status-badge--${u.active ? 'completed' : 'pending'}">
+            <i></i>${u.active ? 'Đang dùng' : 'Chưa dùng'}
+          </span>
+        </span>
+        <span class="dg-cell dg-cell--end dg-actions">
+          <button class="dg-action" data-view-devices="${esc(u.keyId)}" title="Xem key">
+            <svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>
+          </button>
+          <button class="dg-action" data-copy="${esc(u.uid)}" title="Sao chép UID">
+            <svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+          </button>
+          <button class="dg-action dg-action--danger" data-remove-uid="${esc(u.uid)}" data-key-id="${esc(u.keyId)}" title="Xoá UID">
+            <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M6.5 7l1 13h9l1-13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </span>
+      </div>
+    `).join('');
+    
+    // UID Pagination
+    const uidPag = document.getElementById('uidPagination');
+    if (uidPag) {
+      let html = `<button class="page-btn" data-uid-pg="${uidTable.page - 1}" ${uidTable.page === 1 ? "disabled" : ""}>‹</button>`;
+      for (let i = 1; i <= pages; i++) {
+        html += `<button class="page-btn ${i === uidTable.page ? "is-active" : ""}" data-uid-pg="${i}">${i}</button>`;
+      }
+      html += `<button class="page-btn" data-uid-pg="${uidTable.page + 1}" ${uidTable.page === pages ? "disabled" : ""}>›</button>`;
+      uidPag.innerHTML = html;
+    }
+  }
+
+  /* ── UID EVENTS ──────────────────────────────── */
+  const uidSearch = $("#uidSearch");
+  if (uidSearch) {
+    uidSearch.addEventListener("input", e => {
+      uidTable.search = e.target.value;
+      uidTable.page = 1;
+      renderUIDList();
+    });
+  }
+  
+  const uidStatusFilter = $("#uidStatusFilter");
+  if (uidStatusFilter) {
+    uidStatusFilter.addEventListener("change", e => {
+      uidTable.status = e.target.value;
+      uidTable.page = 1;
+      renderUIDList();
+    });
+  }
+  
+  document.addEventListener("click", (e) => {
+    const uidPagBtn = e.target.closest("[data-uid-pg]");
+    if (uidPagBtn && !uidPagBtn.disabled) {
+      uidTable.page = +uidPagBtn.dataset.uidPg;
+      renderUIDList();
+      return;
+    }
+    
+    // Xoá UID từ danh sách
+    const removeUIDBtn = e.target.closest("[data-remove-uid]");
+    if (removeUIDBtn) {
+      const uid = removeUIDBtn.dataset.removeUid;
+      const keyId = removeUIDBtn.dataset.keyId;
+      if (!confirm(`Xoá UID "${uid}" khỏi key?`)) return;
+      
+      const key = keys[keyId];
+      if (!key) return;
+      
+      const newDevices = { ...key.devices };
+      delete newDevices[uid];
+      
+      KeyAPI.updateKey(keyId, { devices: newDevices }).then(() => {
+        keys[keyId].devices = newDevices;
+        renderAll();
+        toast('success', 'Đã xoá UID', `UID ${uid} đã được xoá khỏi key.`);
+      }).catch(err => toast('danger', 'Lỗi', err.message));
+      return;
+    }
+  });
+
+  /* ── MODAL: XEM THIẾT BỊ ───────────────────── */
   function showDevicesModal(keyId) {
     const key = keys[keyId];
     if (!key) {
@@ -762,6 +919,47 @@
       });
     }
   });
+
+  // Add global UID button
+  const addGlobalUIDBtn = $("#addGlobalUIDBtn");
+  if (addGlobalUIDBtn) {
+    addGlobalUIDBtn.addEventListener("click", () => {
+      const uid = prompt('Nhập UID mới:');
+      if (!uid || !uid.trim()) return;
+      
+      // Tìm key đầu tiên có thể thêm UID
+      let targetKeyId = null;
+      for (const [id, key] of Object.entries(keys)) {
+        const deviceCount = Object.keys(key.devices || {}).length;
+        const maxDevices = key.maxDevices || 1;
+        if (deviceCount < maxDevices && keyStatus(key) === "active") {
+          targetKeyId = id;
+          break;
+        }
+      }
+      
+      if (!targetKeyId) {
+        toast('warning', 'Không có key trống', 'Tất cả key đã đầy hoặc không hoạt động. Hãy tạo key mới.');
+        return;
+      }
+      
+      const key = keys[targetKeyId];
+      if (key.devices && key.devices[uid.trim()]) {
+        toast('warning', 'UID đã tồn tại', `UID ${uid.trim()} đã tồn tại trong key.`);
+        return;
+      }
+      
+      const newDevices = { ...key.devices };
+      newDevices[uid.trim()] = true;
+      
+      KeyAPI.updateKey(targetKeyId, { devices: newDevices }).then(() => {
+        keys[targetKeyId].devices = newDevices;
+        renderAll();
+        toast('success', 'Đã thêm UID', `UID ${uid.trim()} đã được thêm vào key ${key.key}`);
+        gotoPage('uid');
+      }).catch(err => toast('danger', 'Lỗi', err.message));
+    });
+  }
   
   const createPkgBtn = $("#createPkgBtn");
   if (createPkgBtn) createPkgBtn.addEventListener("click", () => openModal("#pkgModal"));
@@ -1086,5 +1284,5 @@
 
   /* ── INIT ──────────────────────────────────── */
   loadAll();
-  setInterval(() => { renderStats(); renderTable(); }, 60000);
+  setInterval(() => { renderStats(); renderTable(); renderUIDList(); }, 60000);
 })();
