@@ -3,14 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>KeyVault — Quản lý Key</title>
-  <meta name="description" content="KeyVault — Hệ thống quản lý key premium" />
+  <title>API SEVER KEY BY THÀNH LỢI</title>
+  <meta name="description" content="API SEVER KEY BY THÀNH LỢI — Hệ thống quản lý key premium" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Outfit:wght@500;600;700&family=Orbitron:wght@500;600;700;800;900&family=Press+Start+2P&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/main.css" />
   <link rel="stylesheet" href="css/components.css" />
   <link rel="stylesheet" href="css/keymanager.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -26,6 +27,22 @@
     <div class="bg-vignette"></div>
   </div>
 
+  <!-- ═══════════ LOADING SCREEN ═══════════ -->
+  <div class="loader-screen" id="loaderScreen" aria-hidden="true">
+    <div class="loader-screen__orb">
+      <div class="loader-screen__ring"></div>
+      <div class="loader-screen__ring loader-screen__ring--2"></div>
+      <div class="loader-screen__ring loader-screen__ring--3"></div>
+      <div class="loader-screen__logo">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M14 7a5 5 0 11-4.9 6L3 19v2h4v-2h2v-2h2l1.1-1.1A5 5 0 0114 7z" stroke="url(#loaderGrad)" stroke-width="1.6" stroke-linejoin="round"/><circle cx="15.5" cy="10.5" r="1.5" fill="url(#loaderGrad)"/><defs><linearGradient id="loaderGrad" x1="2" y1="2" x2="22" y2="22"><stop stop-color="#22d3ee"/><stop offset=".5" stop-color="#818cf8"/><stop offset="1" stop-color="#e879f9"/></linearGradient></defs></svg>
+      </div>
+    </div>
+    <p class="loader-screen__brand">API SEVER KEY</p>
+    <p class="loader-screen__by">BY THÀNH LỢI</p>
+    <div class="loader-screen__bar"><i></i></div>
+    <span class="loader-screen__hint">Đang kết nối Firebase…</span>
+  </div>
+
   <div class="cursor-glow" aria-hidden="true"></div>
 
   <div class="shell">
@@ -36,7 +53,7 @@
         <div class="brand-mark">
           <svg viewBox="0 0 24 24" fill="none"><path d="M14 7a5 5 0 11-4.9 6L3 19v2h4v-2h2v-2h2l1.1-1.1A5 5 0 0114 7z" stroke="url(#brandGrad)" stroke-width="1.6" stroke-linejoin="round"/><circle cx="15.5" cy="10.5" r="1.5" fill="url(#brandGrad)"/><defs><linearGradient id="brandGrad" x1="2" y1="2" x2="22" y2="22"><stop stop-color="#22d3ee"/><stop offset=".5" stop-color="#818cf8"/><stop offset="1" stop-color="#e879f9"/></linearGradient></defs></svg>
         </div>
-        <span class="brand-name">KeyVault</span>
+        <span class="brand-name">API SEVER KEY</span>
         <button class="sidebar__collapse" id="sidebarCollapse" title="Thu gọn" aria-label="Thu gọn sidebar">
           <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
@@ -74,6 +91,11 @@
         </a>
 
         <span class="nav-label">Hệ thống</span>
+        <a class="nav-item" href="#" data-page="login-history">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2" stroke-linecap="round"/></svg>
+          <span>Lịch sử đăng nhập</span>
+          <span class="nav-count nav-count--cyan" id="navLoginLogCount">0</span>
+        </a>
         <a class="nav-item" href="#" data-page="app-settings">
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="3" y1="9" x2="21" y2="9" stroke="currentColor" stroke-width="1.8"/><line x1="3" y1="15" x2="21" y2="15" stroke="currentColor" stroke-width="1.8"/><line x1="9" y1="3" x2="9" y2="21" stroke="currentColor" stroke-width="1.8"/></svg>
           <span>Set APP & Device</span>
@@ -129,6 +151,10 @@
             <span class="clock-date" id="clockDate"></span>
           </div>
 
+          <button class="icon-btn sync-toggle is-active" id="syncToggleBtn" title="Đồng bộ: BẬT" aria-label="Bật/tắt đồng bộ">
+            <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-2.6-6.3M21 4v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+
           <button class="icon-btn" id="refreshBtn" title="Làm mới dữ liệu" aria-label="Làm mới">
             <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-2.6-6.3M21 4v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
@@ -153,7 +179,7 @@
           <div class="page-head dashboard-hero reveal">
             <div>
               <div class="dashboard-hero__status"><i></i> System online <span>•</span> <span id="todayLabel"></span></div>
-              <h1 class="page-head__title">KeyVault <span class="text-gradient">Control Center</span></h1>
+              <h1 class="page-head__title">API SEVER KEY <span class="text-gradient">BY THÀNH LỢI</span></h1>
               <p class="page-head__sub">Theo dõi key, thiết bị và hiệu suất hệ thống trong một giao diện duy nhất.</p>
             </div>
             <div class="page-head__actions">
@@ -237,8 +263,61 @@
             </article>
           </div>
 
-          <div class="charts-grid" style="grid-template-columns: 1.6fr 1fr;">
-            <article class="panel panel--activity reveal" style="--d:.1s">
+          <div class="charts-grid" style="grid-template-columns: 1.5fr 1fr;">
+            <article class="panel panel--chart-container reveal" style="--d:.1s">
+              <header class="panel__head">
+                <div>
+                  <h2>
+                    <svg viewBox="0 0 24 24" fill="none" style="width:18px;height:18px;vertical-align:-3px;margin-right:6px"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M7 16l4-5 3 3 3-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    Xu hướng tạo Key
+                  </h2>
+                  <p>7 ngày gần đây</p>
+                </div>
+              </header>
+              <div class="panel__chart">
+                <canvas id="chartKeyTrend"></canvas>
+              </div>
+            </article>
+
+            <div style="display:flex;flex-direction:column;gap:var(--gap);">
+              <article class="panel panel--chart-container reveal" style="--d:.14s">
+                <header class="panel__head">
+                  <div>
+                    <h2>
+                      <svg viewBox="0 0 24 24" fill="none" style="width:18px;height:18px;vertical-align:-3px;margin-right:6px"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                      Phân bố theo Gói
+                    </h2>
+                    <p>Tỷ lệ key mỗi gói</p>
+                  </div>
+                </header>
+                <div class="panel__chart panel__chart--donut">
+                  <canvas id="chartPackageDist"></canvas>
+                  <div class="donut-center" id="donutCenter">
+                    <span id="donutTotal">0</span>
+                    <small>Tổng Key</small>
+                  </div>
+                </div>
+              </article>
+
+              <article class="panel panel--chart-container reveal" style="--d:.18s">
+                <header class="panel__head">
+                  <div>
+                    <h2>
+                      <svg viewBox="0 0 24 24" fill="none" style="width:18px;height:18px;vertical-align:-3px;margin-right:6px"><rect x="3" y="12" width="4" height="8" rx="1" stroke="currentColor" stroke-width="1.6"/><rect x="9" y="8" width="4" height="12" rx="1" stroke="currentColor" stroke-width="1.6"/><rect x="15" y="4" width="4" height="16" rx="1" stroke="currentColor" stroke-width="1.6"/></svg>
+                      Trạng thái Key theo Gói
+                    </h2>
+                    <p>Active / Expired / Banned</p>
+                  </div>
+                </header>
+                <div class="panel__chart panel__chart--sm">
+                  <canvas id="chartPackageStatus"></canvas>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <div class="charts-grid" style="grid-template-columns: 1fr 1fr;">
+            <article class="panel panel--activity reveal" style="--d:.22s">
               <header class="panel__head">
                 <div>
                   <h2>Key mới tạo gần đây</h2>
@@ -249,7 +328,7 @@
               <ul class="activity-feed" id="recentKeys"></ul>
             </article>
 
-            <article class="panel panel--activity reveal" style="--d:.18s">
+            <article class="panel panel--activity reveal" style="--d:.26s">
               <header class="panel__head">
                 <div>
                   <h2>Thống kê theo gói</h2>
@@ -278,6 +357,23 @@
                 <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                 Tạo Key
               </button>
+            </div>
+          </div>
+
+          <div class="bulk-actions" id="bulkActions" hidden>
+            <div class="bulk-actions__inner">
+              <span class="bulk-actions__count" id="bulkCount">0 key đã chọn</span>
+              <div class="bulk-actions__btns">
+                <button class="btn btn--danger btn--sm" id="bulkDeleteBtn">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M6.5 7l1 13h9l1-13"/></svg>
+                  Xoá đã chọn
+                </button>
+                <button class="btn btn--secondary btn--sm" id="bulkBanBtn">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+                  Khoá đã chọn
+                </button>
+                <button class="btn btn--ghost btn--sm" id="bulkClearBtn">Huỷ chọn</button>
+              </div>
             </div>
           </div>
 
@@ -310,7 +406,7 @@
 
             <div class="datagrid" id="datagrid">
               <div class="datagrid__head datagrid__head--keys">
-                <button class="dg-cell dg-cell--sortable" data-sort="key">Key <i class="sort-arrow"></i></button>
+                <span class="dg-cell dg-cell--check"><input type="checkbox" class="bulk-check-all" id="bulkCheckAll" title="Chọn tất cả" /></span>
                 <button class="dg-cell dg-cell--sortable" data-sort="package">Gói <i class="sort-arrow"></i></button>
                 <button class="dg-cell dg-cell--sortable" data-sort="createdAt">Ngày tạo <i class="sort-arrow"></i></button>
                 <button class="dg-cell dg-cell--sortable" data-sort="expiresAt">Hết hạn <i class="sort-arrow"></i></button>
@@ -388,7 +484,10 @@
             <div class="panel check-panel reveal" style="--d:.12s">
               <header class="panel__head">
                 <div>
-                  <h2>🛡️ Kiểm tra Bypass Menu</h2>
+                  <h2>
+                  <svg viewBox="0 0 24 24" fill="none" style="width:18px;height:18px;vertical-align:-3px;margin-right:6px"><path d="M12 2l7 4v5c0 5.5-3.8 10.7-7 12-3.2-1.3-7-6.5-7-12V6l7-4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Kiểm tra Bypass Menu
+                </h2>
                   <p>Nhập UID để kiểm tra trạng thái bypass menu</p>
                 </div>
               </header>
@@ -398,6 +497,7 @@
                   <label for="checkBypassInput">Nhập UID cần kiểm tra…</label>
                 </div>
                 <button type="submit" class="btn btn--secondary" id="checkBypassSubmit">
+                  <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.6"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
                   <span class="btn__label">Kiểm tra Bypass</span>
                   <span class="btn__spinner"></span>
                 </button>
@@ -764,9 +864,9 @@
 
         <!-- ────── PAGE: MENU BYPASS ────── -->
         <section class="page" data-page-id="menu-bypass">
-          <div class="page-head reveal">
+          <div class="page-head bypass-hero reveal">
             <div>
-              <p class="page-head__eyebrow">Quản lý</p>
+              <div class="bypass-hero__status"><i></i> Bypass System <span>•</span> <span id="bypassHeroStatus">Active</span></div>
               <h1 class="page-head__title">Bypass <span class="text-gradient">Menu</span></h1>
               <p class="page-head__sub">Quản lý bypass menu cho từng UID cụ thể và kick game tức thì.</p>
             </div>
@@ -778,30 +878,46 @@
             </div>
           </div>
 
-          <div class="stats-grid" style="grid-template-columns:1fr 1fr 1fr 1fr">
-            <article class="stat-card stat-card--users reveal" style="--d:.05s">
-              <header><div class="stat-card__icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 12.5l2.7 2.7L16 9.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></header>
-              <p class="stat-card__label">Bypass Menu</p>
-              <h3 class="stat-card__value"><span id="statBypassStatus">0 UID</span></h3>
-              <footer><span class="status-pip status-pip--live" id="bypassStatusDot"></span> <span id="bypassStatusText">Đang tắt</span></footer>
+          <div class="bypass-stats-row reveal" style="--d:.04s">
+            <article class="bypass-stat bypass-stat--shield">
+              <div class="bypass-stat__icon">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l7 4v5c0 5.5-3.8 10.7-7 12-3.2-1.3-7-6.5-7-12V6l7-4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <div class="bypass-stat__body">
+                <span class="bypass-stat__label">Bypass Menu</span>
+                <strong class="bypass-stat__value" id="statBypassStatus">Tắt</strong>
+              </div>
+              <div class="bypass-stat__glow"></div>
             </article>
-            <article class="stat-card stat-card--conversion reveal" style="--d:.12s">
-              <header><div class="stat-card__icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 12.5l2.7 2.7L16 9.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></header>
-              <p class="stat-card__label">UID được Bypass</p>
-              <h3 class="stat-card__value"><span id="statBypassUIDCount">0</span></h3>
-              <footer><span class="status-pip status-pip--live"></span> Đang bật</footer>
+            <article class="bypass-stat bypass-stat--users">
+              <div class="bypass-stat__icon">
+                <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="9" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              </div>
+              <div class="bypass-stat__body">
+                <span class="bypass-stat__label">UID được Bypass</span>
+                <strong class="bypass-stat__value" id="statBypassUIDCount">0</strong>
+              </div>
+              <div class="bypass-stat__glow"></div>
             </article>
-            <article class="stat-card stat-card--revenue reveal" style="--d:.19s">
-              <header><div class="stat-card__icon"><svg viewBox="0 0 24 24"><path d="M14 7a5 5 0 11-4.9 6L3 19v2h4v-2h2v-2h2l1.1-1.1A5 5 0 0114 7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="15.5" cy="10.5" r="1.5" fill="currentColor"/></svg></div></header>
-              <p class="stat-card__label">Kick gần nhất</p>
-              <h3 class="stat-card__value" id="latestKickDisplay" style="font-size:clamp(16px,1.6vw,22px)">—</h3>
-              <footer><span class="status-pip status-pip--warn"></span> <span id="latestKickTime">Chưa có</span></footer>
+            <article class="bypass-stat bypass-stat--kick">
+              <div class="bypass-stat__icon">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+              </div>
+              <div class="bypass-stat__body">
+                <span class="bypass-stat__label">Kick gần nhất</span>
+                <strong class="bypass-stat__value" id="latestKickDisplay">—</strong>
+              </div>
+              <div class="bypass-stat__glow"></div>
             </article>
-            <article class="stat-card stat-card--orders reveal" style="--d:.26s">
-              <header><div class="stat-card__icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div></header>
-              <p class="stat-card__label">Tổng thao tác</p>
-              <h3 class="stat-card__value"><span id="statTotalActions">0</span></h3>
-              <footer><span class="status-pip status-pip--live"></span> Đã xử lý</footer>
+            <article class="bypass-stat bypass-stat--total">
+              <div class="bypass-stat__icon">
+                <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M7 16l4-5 3 3 3-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <div class="bypass-stat__body">
+                <span class="bypass-stat__label">Tổng thao tác</span>
+                <strong class="bypass-stat__value" id="statTotalActions">0</strong>
+              </div>
+              <div class="bypass-stat__glow"></div>
             </article>
           </div>
 
@@ -809,7 +925,10 @@
             <article class="panel panel--table reveal" style="--d:.08s">
               <header class="panel__head panel__head--table">
                 <div>
-                  <h2>Danh sách UID Bypass</h2>
+                  <h2>
+                    <svg viewBox="0 0 24 24" fill="none" style="width:18px;height:18px;vertical-align:-3px;margin-right:6px"><path d="M12 2l7 4v5c0 5.5-3.8 10.7-7 12-3.2-1.3-7-6.5-7-12V6l7-4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+                    Danh sách UID Bypass
+                  </h2>
                   <p id="menuBypassSubtitle">Quản lý bypass menu cho từng UID</p>
                 </div>
                 <div class="table-tools">
@@ -820,7 +939,7 @@
                 </div>
               </header>
               <div class="datagrid" id="menuBypassDatagrid">
-                <div class="datagrid__head" style="grid-template-columns:1.2fr 0.8fr 0.8fr 0.6fr 0.6fr;">
+                <div class="datagrid__head" style="grid-template-columns:1.3fr 0.8fr 0.9fr 0.7fr 0.7fr;">
                   <span class="dg-cell">UID</span>
                   <span class="dg-cell">Bypass</span>
                   <span class="dg-cell">Kick</span>
@@ -836,46 +955,59 @@
               </div>
             </article>
 
-            <article class="panel panel--activity reveal" style="--d:.16s">
-              <header class="panel__head">
-                <div>
-                  <h2>🎮 Quản lý Bypass</h2>
-                  <p>Nhập UID để bật hoặc tắt bypass</p>
-                </div>
-              </header>
-              
-              <div style="display:flex;flex-direction:column;gap:12px;padding:8px 0">
-                <div class="float-field">
-                  <input type="text" id="menuBypassUidInput" placeholder=" " autocomplete="off" spellcheck="false" />
-                  <label for="menuBypassUidInput">Nhập UID cần cấu hình</label>
-                </div>
-                
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-                  <button class="btn btn--success" id="enableUidBypassBtn" style="height:44px">
-                    <span class="btn__label">✅ Bật Bypass</span>
-                  </button>
-                  <button class="btn btn--danger" id="disableUidBypassBtn" style="height:44px">
-                    <span class="btn__label">❌ Tắt Bypass</span>
-                  </button>
-                </div>
-                
-                <div style="display:flex;gap:8px;align-items:center;padding:6px 12px;background:var(--glass);border-radius:8px;border:1px solid var(--stroke)">
-                  <span style="font-size:20px">💡</span>
-                  <span style="font-size:12px;color:var(--text-3)">
-                    <b>Bật:</b> UID được bypass → tắt anticheat<br>
-                    <b>Tắt:</b> UID không được bypass → bật anticheat
-                  </span>
-                </div>
-              </div>
-
-              <div style="margin-top:16px;border-top:1px solid var(--stroke);padding-top:14px">
-                <header class="panel__head" style="margin-bottom:8px">
+            <div style="display:flex;flex-direction:column;gap:var(--gap);">
+              <!-- Bypass Control Panel -->
+              <article class="panel bypass-control reveal" style="--d:.12s">
+                <header class="panel__head">
                   <div>
-                    <h2 style="font-size:15px">🚨 Kick ngay lập tức</h2>
-                    <p style="font-size:12px">Văng UID khỏi game ngay tức thì</p>
+                    <h2>
+                      <svg viewBox="0 0 24 24" fill="none" style="width:18px;height:18px;vertical-align:-3px;margin-right:6px"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                      Điều khiển Bypass
+                    </h2>
+                    <p>Bật / tắt bypass cho UID</p>
                   </div>
                 </header>
-                <form id="menuKickForm" style="display:flex;flex-direction:column;gap:12px">
+                
+                <div class="bypass-control__body">
+                  <div class="float-field">
+                    <input type="text" id="menuBypassUidInput" placeholder=" " autocomplete="off" spellcheck="false" />
+                    <label for="menuBypassUidInput">Nhập UID cần cấu hình</label>
+                  </div>
+                  
+                  <div class="bypass-control__actions">
+                    <button class="btn btn--success" id="enableUidBypassBtn">
+                      <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l7 4v5c0 5.5-3.8 10.7-7 12-3.2-1.3-7-6.5-7-12V6l7-4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      <span class="btn__label">Bật Bypass</span>
+                    </button>
+                    <button class="btn btn--danger" id="disableUidBypassBtn">
+                      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M9 9l6 6M15 9l-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                      <span class="btn__label">Tắt Bypass</span>
+                    </button>
+                  </div>
+                  
+                  <div class="bypass-control__hint">
+                    <svg viewBox="0 0 24 24" fill="none" style="width:20px;height:20px;flex-shrink:0;color:var(--cyan)"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></svg>
+                    <span><b>Bật:</b> UID được bypass → tắt anticheat &nbsp;|&nbsp; <b>Tắt:</b> UID không bypass → bật anticheat</span>
+                  </div>
+                </div>
+              </article>
+
+              <!-- Kick Section -->
+              <article class="panel bypass-kick reveal" style="--d:.18s">
+                <div class="bypass-kick__badge">
+                  <svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+                  KICK ZONE
+                </div>
+                <header class="panel__head">
+                  <div>
+                    <h2>
+                      <svg viewBox="0 0 24 24" fill="none" style="width:18px;height:18px;vertical-align:-3px;margin-right:6px"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                      Kick ngay lập tức
+                    </h2>
+                    <p>Văng UID khỏi game ngay tức thì</p>
+                  </div>
+                </header>
+                <form id="menuKickForm" class="bypass-kick__form">
                   <div class="float-field">
                     <input type="text" id="menuKickUidInput" placeholder=" " autocomplete="off" spellcheck="false" />
                     <label for="menuKickUidInput">UID cần kick</label>
@@ -884,30 +1016,155 @@
                     <input type="text" id="menuKickReasonInput" placeholder=" " autocomplete="off" spellcheck="false" value="Bạn đã bị văng khỏi game!" />
                     <label for="menuKickReasonInput">Lý do kick</label>
                   </div>
-                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-                    <button type="submit" class="btn btn--danger" id="menuKickNowBtn" style="height:44px">
-                      <span class="btn__label">💥 Kick ngay</span>
+                  <div class="bypass-kick__actions">
+                    <button type="submit" class="btn btn--danger btn--lg" id="menuKickNowBtn">
+                      <svg viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+                      <span class="btn__label">Kick ngay</span>
                       <span class="btn__spinner"></span>
                     </button>
-                    <button type="button" class="btn btn--secondary" id="menuRemoveKickBtn" style="height:44px">
-                      <span class="btn__label">🔓 Gỡ Kick</span>
+                    <button type="button" class="btn btn--secondary" id="menuRemoveKickBtn">
+                      <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 12h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                      <span class="btn__label">Gỡ Kick</span>
                     </button>
                   </div>
                 </form>
-              </div>
-              
-              <div style="margin-top:12px;border-top:1px solid var(--stroke);padding-top:14px">
-                <p style="font-size:12.5px;color:var(--text-3)">
-                  💡 <b>Bypass Menu</b>: Chỉ bật cho UID cụ thể. UID được bypass sẽ tắt anticheat.<br>
-                  💡 <b>Kick</b>: Văng UID khỏi game ngay lập tức.<br>
-                  💡 <b>UID</b>: Lấy từ tab "Quản lý UID" hoặc "Quản lý Thiết bị".
+              </article>
+
+              <div class="bypass-tips reveal" style="--d:.22s">
+                <p>
+                  <svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;color:var(--cyan)"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></svg>
+                  <b>Bypass Menu</b>: Chỉ bật cho UID cụ thể. UID được bypass sẽ tắt anticheat.
+                </p>
+                <p>
+                  <svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;color:var(--cyan)"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></svg>
+                  <b>Kick</b>: Văng UID khỏi game ngay lập tức.
+                </p>
+                <p>
+                  <svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;color:var(--cyan)"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></svg>
+                  <b>UID</b>: Lấy từ tab "Quản lý UID" hoặc "Quản lý Thiết bị".
                 </p>
               </div>
-            </article>
+            </div>
           </div>
         </section>
 
+        <!-- ────── PAGE: LOGIN HISTORY ────── -->
+        <section class="page" data-page-id="login-history">
+          <div class="page-head reveal">
+            <div>
+              <div class="bypass-hero__status"><i></i> Login Monitor <span>•</span> <span id="loginHistoryHeroStatus">Live</span></div>
+              <h1 class="page-head__title">Lịch sử <span class="text-gradient">Đăng nhập</span></h1>
+              <p class="page-head__sub">Theo dõi toàn bộ lịch sử đăng nhập theo UID, lọc theo trạng thái và tìm kiếm.</p>
+            </div>
+            <div class="page-head__actions">
+              <button class="btn btn--secondary" id="refreshLoginHistoryBtn">
+                <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-2.6-6.3M21 4v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Làm mới
+              </button>
+            </div>
+          </div>
+
+          <div class="bypass-stats-row reveal" style="--d:.04s">
+            <article class="bypass-stat bypass-stat--total">
+              <div class="bypass-stat__icon">
+                <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 6v6l4 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              </div>
+              <div class="bypass-stat__body">
+                <span class="bypass-stat__label">Tổng lượt login</span>
+                <strong class="bypass-stat__value" id="statTotalLogins">0</strong>
+              </div>
+              <div class="bypass-stat__glow"></div>
+            </article>
+            <article class="bypass-stat bypass-stat--users">
+              <div class="bypass-stat__icon">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <div class="bypass-stat__body">
+                <span class="bypass-stat__label">Thành công</span>
+                <strong class="bypass-stat__value" id="statSuccessLogins">0</strong>
+              </div>
+              <div class="bypass-stat__glow"></div>
+            </article>
+            <article class="bypass-stat bypass-stat--shield">
+              <div class="bypass-stat__icon">
+                <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M9 9l6 6M15 9l-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              </div>
+              <div class="bypass-stat__body">
+                <span class="bypass-stat__label">Thất bại</span>
+                <strong class="bypass-stat__value" id="statFailedLogins">0</strong>
+              </div>
+              <div class="bypass-stat__glow"></div>
+            </article>
+            <article class="bypass-stat bypass-stat--kick">
+              <div class="bypass-stat__icon">
+                <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="9" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              </div>
+              <div class="bypass-stat__body">
+                <span class="bypass-stat__label">UID duy nhất</span>
+                <strong class="bypass-stat__value" id="statUniqueUIDs">0</strong>
+              </div>
+              <div class="bypass-stat__glow"></div>
+            </article>
+          </div>
+
+          <article class="panel panel--table reveal" style="--d:.08s">
+            <header class="panel__head panel__head--table">
+              <div>
+                <h2>
+                  <svg viewBox="0 0 24 24" fill="none" style="width:18px;height:18px;vertical-align:-3px;margin-right:6px"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 6v6l4 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                  Chi tiết đăng nhập
+                </h2>
+                <p id="loginHistorySubtitle">Tất cả lượt đăng nhập</p>
+              </div>
+              <div class="table-tools">
+                <div class="field field--search">
+                  <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                  <input type="text" id="loginHistorySearch" placeholder="Tìm UID hoặc Key..." autocomplete="off" />
+                </div>
+                <select id="loginHistoryFilter" class="field field--select" style="width:auto;padding:7px 12px;border-radius:10px;background:var(--glass);border:1px solid var(--stroke);color:var(--text-2);font-size:13px;cursor:pointer">
+                  <option value="all">Tất cả</option>
+                  <option value="success">✅ Thành công</option>
+                  <option value="failed">❌ Thất bại</option>
+                </select>
+              </div>
+            </header>
+            <div class="datagrid" id="loginHistoryDatagrid">
+              <div class="datagrid__head" style="grid-template-columns:1.2fr 1fr 0.8fr 0.8fr 1.2fr 0.8fr;">
+                <span class="dg-cell">UID</span>
+                <span class="dg-cell">Key</span>
+                <span class="dg-cell">Trạng thái</span>
+                <span class="dg-cell">Thiết bị</span>
+                <span class="dg-cell">Thời gian</span>
+                <span class="dg-cell dg-cell--end">Lý do</span>
+              </div>
+              <div class="datagrid__body" id="loginHistoryBody"></div>
+              <div class="datagrid__empty" id="loginHistoryEmpty" hidden>
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 6v6l4 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                <strong>Không có dữ liệu</strong>
+                <p>Chưa có lịch sử đăng nhập nào.</p>
+              </div>
+            </div>
+          </article>
+        </section>
+
       </main>
+    </div>
+  </div>
+
+  <!-- ═══════════ COMMAND PALETTE ═══════════ -->
+  <div class="cmdk" id="cmdPalette" hidden>
+    <div class="cmdk__backdrop" data-close-cmd></div>
+    <div class="cmdk__panel">
+      <div class="cmdk__input-row">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <input type="text" id="cmdInput" placeholder="Tìm kiếm key, UID, chuyển tab..." autocomplete="off" spellcheck="false" />
+        <kbd>ESC</kbd>
+      </div>
+      <div class="cmdk__results" id="cmdResults">
+        <div class="cmdk-empty">
+          <span>Bắt đầu gõ để tìm kiếm…</span>
+        </div>
+      </div>
     </div>
   </div>
 

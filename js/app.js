@@ -35,6 +35,17 @@
   let menuKickUIDs = {};
   let menuBypassStatus = { enabled: false };
 
+  // Bulk selection state
+  let selectedKeys = new Set();
+
+  // Login history state
+  let loginLogs = {};
+  let loginHistorySearch = '';
+  let loginHistoryFilter = 'all';
+
+  // Real-time listeners
+  let firebaseListeners = [];
+
   /* ── CHECK API FUNCTIONS ────────────────────── */
   const apiFallbacks = [
     'getBannedUIDs', 'getAllDeviceInfo', 'getAllAppAndDeviceInfo',
@@ -166,6 +177,11 @@
     }
   }
 
+  function debounce(fn, ms) {
+    let t;
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+  }
+
   /* ── NAVIGATION ────────────────────── */
   function gotoPage(pageId) {
     $$(".page").forEach(p => p.classList.toggle("is-active", p.dataset.pageId === pageId));
@@ -196,10 +212,14 @@
         console.warn('Không thể load banned UIDs:', e);
         bannedUIDs = {};
       }
+      // Load login history once (won't re-fetch if already loaded)
+      loadLoginHistory();
       renderAll();
+      hideLoader();
       if (notify) toast("success", "Đã làm mới", "Dữ liệu đã được đồng bộ từ Firebase.");
     } catch (err) {
       console.error(err);
+      hideLoader();
       toast("danger", "Lỗi kết nối", "Không thể tải dữ liệu từ Firebase: " + err.message);
       const body = $("#tableBody");
       if (body) body.innerHTML = "";
@@ -219,6 +239,16 @@
     renderDeviceManager();
     renderAppDevice();
     renderMenuBypass();
+    renderCharts();
+    renderLoginHistory();
+  }
+
+  /* ── HIDE LOADER ─────────────────────────────── */
+  function hideLoader() {
+    const loader = $("#loaderScreen");
+    if (!loader) return;
+    loader.classList.add("is-hidden");
+    setTimeout(() => { if (loader.parentNode) loader.remove(); }, 700);
   }
 
   /* ── STATS ─────────────────────────────────── */
@@ -254,6 +284,381 @@
     if (bar) bar.style.setProperty("--w", pct + "%");
     const summary = $("#activeSummary");
     if (summary) summary.textContent = `${active} / ${total} key còn hạn`;
+  }
+
+  /* ── CHARTS ─────────────────────────────────── */
+  let chartInstances = {};
+
+  function renderCharts() {
+    if (typeof Chart === 'undefined') return;
+    
+    const list = Object.values(keys);
+    renderKeyTrendChart(list);
+    renderPackageDistChart(list);
+    renderPackageStatusChart(list);
+  }
+
+  function destroyChart(key) {
+    if (chartInstances[key]) { chartInstances[key].destroy(); chartInstances[key] = null; }
+  }
+
+  function renderKeyTrendChart(list) {
+    destroyChart('keyTrend');
+    const canvas = document.getElementById('chartKeyTrend');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const days = 7;
+    const msDay = 864e5;
+    const end = new Date().setHours(23, 59, 59, 999);
+    const start = end - (days - 1) * msDay;
+    
+    const counts = new Array(days).fill(0);
+    const labels = [];
+    
+    for (let i = 0; i < days; i++) {
+      const d = new Date(start + i * msDay);
+      labels.push(d.toLocaleDateString('vi-VN', { weekday: 'short', day: 'numeric', month: 'numeric' }));
+    }
+    
+    list.forEach(k => {
+      const ts = Number(k.createdAt);
+      if (ts >= start && ts <= end) {
+        const idx = Math.floor((ts - start) / msDay);
+        if (idx >= 0 && idx < days) counts[idx]++;
+      }
+    });
+    
+    const gradient = ctx.createLinearGradient(0, 0, 0, 280);
+    gradient.addColorStop(0, 'rgba(129, 140, 248, 0.35)');
+    gradient.addColorStop(1, 'rgba(129, 140, 248, 0.01)');
+    
+    chartInstances.keyTrend = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Key mới',
+          data: counts,
+          borderColor: '#818cf8',
+          backgroundColor: gradient,
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: '#818cf8',
+          pointBorderColor: '#0f1225',
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 8,
+          pointHoverBackgroundColor: '#a5b4fc',
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { intersect: false, mode: 'index' },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(15, 18, 37, 0.95)',
+            titleColor: '#e2e8f0',
+            bodyColor: '#cbd5e1',
+            borderColor: 'rgba(129, 140, 248, 0.3)',
+            borderWidth: 1,
+            cornerRadius: 10,
+            padding: 12,
+            displayColors: false,
+            callbacks: {
+              title: (ctx) => ctx[0].label,
+              label: (ctx) => `${ctx.parsed.y} key mới`
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
+            ticks: { color: '#64748b', font: { size: 10.5 }, maxRotation: 0 }
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
+            ticks: { color: '#64748b', font: { size: 10.5 }, stepSize: 1, precision: 0 }
+          }
+        }
+      }
+    });
+  }
+
+  function renderPackageDistChart(list) {
+    destroyChart('packageDist');
+    const canvas = document.getElementById('chartPackageDist');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const pkgMap = {};
+    list.forEach(k => {
+      const name = pkgName(k.packageId || k.package) || 'Chưa gán';
+      pkgMap[name] = (pkgMap[name] || 0) + 1;
+    });
+    
+    const entries = Object.entries(pkgMap).sort((a, b) => b[1] - a[1]);
+    const labels = entries.map(e => e[0]);
+    const data = entries.map(e => e[1]);
+    const total = data.reduce((a, b) => a + b, 0);
+    
+    const el = document.getElementById('donutTotal');
+    if (el) el.textContent = total;
+    
+    const colors = [
+      '#818cf8', '#34d399', '#fbbf24', '#fb7185', '#22d3ee',
+      '#a855f7', '#e879f9', '#f472b6', '#f97316', '#84cc16'
+    ];
+    
+    chartInstances.packageDist = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: colors.slice(0, entries.length),
+          borderColor: '#0f1225',
+          borderWidth: 3,
+          hoverBorderWidth: 4,
+          hoverBorderColor: '#1a1f3a',
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '68%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color: '#94a3b8',
+              padding: 16,
+              usePointStyle: true,
+              pointStyleWidth: 10,
+              pointStyleHeight: 10,
+              font: { size: 11, family: 'Inter, sans-serif' },
+              generateLabels: (chart) => {
+                const ds = chart.data.datasets[0];
+                return chart.data.labels.map((label, i) => ({
+                  text: `${label} (${ds.data[i]})`,
+                  fillStyle: ds.backgroundColor[i],
+                  strokeStyle: ds.backgroundColor[i],
+                  lineWidth: 0,
+                  hidden: false,
+                  index: i,
+                  pointStyle: 'circle',
+                  rotation: 0
+                }));
+              }
+            }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(15, 18, 37, 0.95)',
+            titleColor: '#e2e8f0',
+            bodyColor: '#cbd5e1',
+            borderColor: 'rgba(129, 140, 248, 0.3)',
+            borderWidth: 1,
+            cornerRadius: 10,
+            padding: 12,
+            callbacks: {
+              label: (ctx) => {
+                const pct = total ? Math.round(ctx.parsed / total * 100) : 0;
+                return ` ${ctx.label}: ${ctx.parsed} key (${pct}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function renderPackageStatusChart(list) {
+    destroyChart('packageStatus');
+    const canvas = document.getElementById('chartPackageStatus');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const pkgMap = {};
+    list.forEach(k => {
+      const name = pkgName(k.packageId || k.package) || 'Chưa gán';
+      if (!pkgMap[name]) pkgMap[name] = { active: 0, expired: 0, banned: 0 };
+      const st = keyStatus(k);
+      if (st === 'active') pkgMap[name].active++;
+      else if (st === 'expired') pkgMap[name].expired++;
+      else if (st === 'banned') pkgMap[name].banned++;
+    });
+    
+    const entries = Object.entries(pkgMap).sort((a, b) => {
+      const totalA = a[1].active + a[1].expired + a[1].banned;
+      const totalB = b[1].active + b[1].expired + b[1].banned;
+      return totalB - totalA;
+    });
+    const labels = entries.map(e => e[0]);
+    
+    chartInstances.packageStatus = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Active',
+            data: entries.map(e => e[1].active),
+            backgroundColor: 'rgba(52, 211, 153, 0.75)',
+            borderColor: '#34d399',
+            borderWidth: 1,
+            borderRadius: 6,
+            borderSkipped: false,
+          },
+          {
+            label: 'Hết hạn',
+            data: entries.map(e => e[1].expired),
+            backgroundColor: 'rgba(251, 191, 36, 0.65)',
+            borderColor: '#fbbf24',
+            borderWidth: 1,
+            borderRadius: 6,
+            borderSkipped: false,
+          },
+          {
+            label: 'Banned',
+            data: entries.map(e => e[1].banned),
+            backgroundColor: 'rgba(251, 113, 133, 0.65)',
+            borderColor: '#fb7185',
+            borderWidth: 1,
+            borderRadius: 6,
+            borderSkipped: false,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { intersect: false, mode: 'index' },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color: '#94a3b8',
+              padding: 14,
+              usePointStyle: true,
+              pointStyleWidth: 8,
+              pointStyleHeight: 8,
+              font: { size: 10.5, family: 'Inter, sans-serif' }
+            }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(15, 18, 37, 0.95)',
+            titleColor: '#e2e8f0',
+            bodyColor: '#cbd5e1',
+            borderColor: 'rgba(129, 140, 248, 0.3)',
+            borderWidth: 1,
+            cornerRadius: 10,
+            padding: 12,
+          }
+        },
+        scales: {
+          x: {
+            stacked: true,
+            grid: { display: false, drawBorder: false },
+            ticks: { color: '#64748b', font: { size: 10 }, maxRotation: 45 }
+          },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
+            ticks: { color: '#64748b', font: { size: 10.5 }, stepSize: 1, precision: 0 }
+          }
+        }
+      }
+    });
+  }
+
+  /* ── LOGIN HISTORY ───────────────────────────── */
+  let loginHistoryLoaded = false;
+  let loginHistoryLoading = false;
+
+  async function loadLoginHistory(force = false) {
+    if (loginHistoryLoading) return;
+    if (loginHistoryLoaded && !force) return;
+    loginHistoryLoading = true;
+    try {
+      loginLogs = await KeyAPI.getAllLoginLogs() || {};
+      loginHistoryLoaded = true;
+    } catch (e) {
+      loginLogs = {};
+    }
+    loginHistoryLoading = false;
+  }
+
+  function renderLoginHistory() {
+    const body = document.getElementById('loginHistoryBody');
+    const empty = document.getElementById('loginHistoryEmpty');
+    if (!body) return;
+
+    // Flatten logs
+    let allLogs = [];
+    for (const [uid, entries] of Object.entries(loginLogs)) {
+      for (const [ts, log] of Object.entries(entries)) {
+        if (log && typeof log === 'object') {
+          allLogs.push({ uid, ...log, _ts: Number(ts) || log.timestamp || 0 });
+        }
+      }
+    }
+    allLogs.sort((a, b) => b._ts - a._ts);
+
+    // Stats
+    const total = allLogs.length;
+    const success = allLogs.filter(l => l.status === 'success').length;
+    const failed = allLogs.filter(l => l.status === 'failed').length;
+    const uniqueUIDs = new Set(allLogs.map(l => l.uid)).size;
+
+    const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+    el('statTotalLogins', total);
+    el('statSuccessLogins', success);
+    el('statFailedLogins', failed);
+    el('statUniqueUIDs', uniqueUIDs);
+    el('navLoginLogCount', total);
+    el('loginHistoryHeroStatus', total > 0 ? `${uniqueUIDs} UIDs` : 'Standby');
+
+    // Filter
+    if (loginHistoryFilter !== 'all') {
+      allLogs = allLogs.filter(l => l.status === loginHistoryFilter);
+    }
+    if (loginHistorySearch) {
+      const s = loginHistorySearch.toLowerCase();
+      allLogs = allLogs.filter(l => l.uid.toLowerCase().includes(s) || (l.keyId || '').toLowerCase().includes(s));
+    }
+
+    const subtitle = document.getElementById('loginHistorySubtitle');
+    if (subtitle) subtitle.textContent = `${allLogs.length} lượt đăng nhập`;
+
+    if (empty) empty.hidden = allLogs.length > 0;
+
+    body.innerHTML = allLogs.slice(0, 200).map(l => {
+      const isSuccess = l.status === 'success';
+      const statusChip = isSuccess
+        ? '<span class="login-chip login-chip--success">Thành công</span>'
+        : '<span class="login-chip login-chip--failed">Thất bại</span>';
+      const deviceName = l.device_info?.device_name || l.device_info?.device_model || '—';
+      const reason = l.reason || (isSuccess ? '' : 'Không xác định');
+
+      return `
+      <div class="dg-row" style="grid-template-columns:1.2fr 1fr 0.8fr 0.8fr 1.2fr 0.8fr;">
+        <span class="dg-cell" style="font-family:monospace;font-size:11px;text-transform:none">${esc(l.uid)}</span>
+        <span class="dg-cell" style="font-size:12px;color:var(--text-2)">${esc(l.keyId || '—')}</span>
+        <span class="dg-cell">${statusChip}</span>
+        <span class="dg-cell" style="font-size:12px;color:var(--text-3)">${esc(deviceName)}</span>
+        <span class="dg-cell" style="text-transform:none;font-size:12px;color:var(--text-3)">${fmtDate(l._ts)}</span>
+        <span class="dg-cell dg-cell--end" style="font-size:11px;color:${isSuccess ? 'var(--text-3)' : 'var(--red)'};max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(reason)}</span>
+      </div>`;
+    }).join('');
+
+    if (allLogs.length > 200) {
+      body.innerHTML += `<div class="dg-row" style="justify-content:center;padding:12px;color:var(--text-3);font-size:12px">Hiển thị 200 / ${allLogs.length} lượt gần nhất</div>`;
+    }
   }
 
   /* ── RECENT KEYS ───────────────── */
@@ -1673,19 +2078,15 @@
       const kickCount = Object.keys(kick).filter(uid => kick[uid]?.kicked === true).length;
       
       const el = (id, val) => { const e = $(`#${id}`); if (e) e.textContent = val; };
-      el("statBypassStatus", bypassCount > 0 ? `✅ ${bypassCount} UID` : "❌ Tắt");
+      el("statBypassStatus", bypassCount > 0 ? `${bypassCount} UID` : "Tắt");
       el("statBypassUIDCount", bypassCount);
-      el("statKickCount", kickCount);
       el("statTotalActions", bypassCount + kickCount);
       el("navBypassMenuCount", bypassCount + kickCount);
       
-      const dot = $("#bypassStatusDot");
-      if (dot) {
-        const isEnabled = bypassCount > 0;
-        dot.style.background = isEnabled ? 'var(--green)' : 'var(--red)';
-        dot.style.boxShadow = isEnabled ? '0 0 8px var(--green)' : '0 0 8px var(--red)';
+      const heroStatus = $("#bypassHeroStatus");
+      if (heroStatus) {
+        heroStatus.textContent = bypassCount > 0 ? `${bypassCount} active` : "Standby";
       }
-      el("bypassStatusText", bypassCount > 0 ? `${bypassCount} UID bypass` : "Đang tắt");
       
       let latestKick = null;
       let latestTime = 0;
@@ -1698,10 +2099,8 @@
       
       if (latestKick) {
         el("latestKickDisplay", latestKick);
-        el("latestKickTime", fmtDate(latestTime));
       } else {
         el("latestKickDisplay", "—");
-        el("latestKickTime", "Chưa có");
       }
       
     } catch (err) {
@@ -1745,16 +2144,14 @@
       if (empty) empty.hidden = list.length > 0;
       
       body.innerHTML = list.map(d => {
-        const bypassStatus = d.bypass ? '✅ Bật' : '❌ Tắt';
-        const bypassColor = d.bypass ? 'var(--green)' : 'var(--text-3)';
-        const kickStatus = d.kick ? '🔴 Bị kick' : '✅ Bình thường';
-        const kickColor = d.kick ? 'var(--red)' : 'var(--green)';
+        const bypassStatus = d.bypass ? 'Bật' : 'Tắt';
+        const kickStatus = d.kick ? 'Bị kick' : 'Bình thường';
         
         return `
-        <div class="dg-row" style="grid-template-columns:1.2fr 0.8fr 0.8fr 0.6fr 0.6fr;" data-uid="${esc(d.uid)}">
+        <div class="dg-row" style="grid-template-columns:1.3fr 0.8fr 0.9fr 0.7fr 0.7fr;" data-uid="${esc(d.uid)}">
           <span class="dg-cell" style="font-family:monospace;font-size:11px;text-transform:none">${esc(d.uid)}</span>
-          <span class="dg-cell"><span style="color:${bypassColor};font-weight:600">${bypassStatus}</span></span>
-          <span class="dg-cell"><span style="color:${kickColor};font-weight:600">${kickStatus}</span></span>
+          <span class="dg-cell"><span class="bypass-status-chip ${d.bypass ? 'bypass-status-chip--on' : 'bypass-status-chip--off'}">${bypassStatus}</span></span>
+          <span class="dg-cell"><span class="kick-status-chip ${d.kick ? 'kick-status-chip--active' : 'kick-status-chip--safe'}">${kickStatus}</span></span>
           <span class="dg-cell" style="text-transform:none;font-size:12px;color:var(--text-3)">${d.updated_at ? fmtDate(d.updated_at) : '—'}</span>
           <span class="dg-cell dg-cell--end">
             <button class="dg-action ${d.bypass ? 'dg-action--danger' : 'dg-action'}" data-toggle-menu-bypass="${esc(d.uid)}" title="${d.bypass ? 'Tắt bypass' : 'Bật bypass'}">
@@ -1845,7 +2242,7 @@
           await KeyAPI.kickNow(uid, reason);
           await KeyAPI.addKickUID(uid, reason);
           renderMenuBypass();
-          toast('danger', '💥 Đã Kick', `UID ${uid} đã bị văng khỏi game ngay lập tức!`);
+          toast('danger', 'Đã Kick', `UID ${uid} đã bị văng khỏi game ngay lập tức!`);
         } catch (err) {
           toast('danger', 'Lỗi', err.message);
         }
@@ -1874,7 +2271,7 @@
       await KeyAPI.addKickUID(uid, reason);
       renderMenuBypass();
       document.getElementById('menuKickUidInput').value = '';
-      toast('danger', '💥 Đã Kick', `UID ${uid} đã bị văng khỏi game ngay lập tức!`);
+      toast('danger', 'Đã Kick', `UID ${uid} đã bị văng khỏi game ngay lập tức!`);
       
       const panel = document.querySelector('#menuKickForm').closest('.panel');
       if (panel) {
@@ -1909,6 +2306,80 @@
   document.getElementById('refreshMenuBypassBtn')?.addEventListener('click', () => {
     renderMenuBypass();
     toast('success', 'Đã làm mới', 'Dữ liệu Menu Bypass đã được cập nhật.');
+  });
+
+  // ── CHECK BYPASS FORM ──────────────────────────
+  document.getElementById('checkBypassForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const uid = document.getElementById('checkBypassInput').value.trim();
+    const resultEl = document.getElementById('checkBypassResult');
+    const btn = document.getElementById('checkBypassSubmit');
+
+    if (!uid) {
+      toast('warning', 'Thiếu UID', 'Vui lòng nhập UID cần kiểm tra.');
+      return;
+    }
+
+    btn.classList.add('is-loading');
+    btn.disabled = true;
+
+    try {
+      const [bypass, kick] = await Promise.all([
+        KeyAPI.getBypassMenuUIDs(),
+        KeyAPI.getKickUIDs()
+      ]);
+
+      const bypassData = bypass[uid];
+      const kickData = kick[uid];
+      const isBypassed = bypassData?.enabled === true;
+      const isKicked = kickData?.kicked === true;
+
+      let html = '<div class="check-result-card">';
+      html += `<div class="check-result-uid">UID: <strong>${esc(uid)}</strong></div>`;
+      html += '<div class="check-result-grid">';
+
+      // Bypass status
+      if (isBypassed) {
+        html += `<div class="check-result-item check-result-item--on">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l7 4v5c0 5.5-3.8 10.7-7 12-3.2-1.3-7-6.5-7-12V6l7-4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Bypass Menu</span>
+          <strong>Đã bật</strong>
+          <small>${bypassData.updated_at ? fmtDate(bypassData.updated_at) : ''}</small>
+        </div>`;
+      } else {
+        html += `<div class="check-result-item check-result-item--off">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M9 9l6 6M15 9l-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Bypass Menu</span>
+          <strong>Chưa bật</strong>
+        </div>`;
+      }
+
+      // Kick status
+      if (isKicked) {
+        html += `<div class="check-result-item check-result-item--danger">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Trạng thái Kick</span>
+          <strong>Đang bị kick</strong>
+          <small>${kickData.reason ? esc(kickData.reason) : ''}</small>
+        </div>`;
+      } else {
+        html += `<div class="check-result-item check-result-item--safe">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Trạng thái Kick</span>
+          <strong>Bình thường</strong>
+        </div>`;
+      }
+
+      html += '</div></div>';
+      resultEl.innerHTML = html;
+      resultEl.hidden = false;
+    } catch (err) {
+      toast('danger', 'Lỗi', err.message);
+      resultEl.hidden = true;
+    } finally {
+      btn.classList.remove('is-loading');
+      btn.disabled = false;
+    }
   });
 
   /* ── DELEGATED EVENTS ────────────────────────── */
@@ -1999,12 +2470,6 @@
   
   document.addEventListener("keydown", e => {
     if (e.key === "Escape") $$(".modal:not([hidden])").forEach(closeModal);
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-      e.preventDefault();
-      gotoPage("keys");
-      const search = $("#tableSearch");
-      if (search) search.focus();
-    }
   });
 
   // Create key buttons
@@ -2343,6 +2808,429 @@
     btn.appendChild(r);
     setTimeout(() => r.remove(), 650);
   });
+
+  /* ── LOGIN HISTORY EVENT HANDLERS ──────────────── */
+  const loginHistorySearchEl = document.getElementById('loginHistorySearch');
+  const loginHistoryFilterEl = document.getElementById('loginHistoryFilter');
+  const refreshLoginHistoryBtn = document.getElementById('refreshLoginHistoryBtn');
+
+  if (loginHistorySearchEl) {
+    loginHistorySearchEl.addEventListener('input', debounce(() => {
+      loginHistorySearch = loginHistorySearchEl.value;
+      renderLoginHistory();
+    }, 300));
+  }
+
+  if (loginHistoryFilterEl) {
+    loginHistoryFilterEl.addEventListener('change', () => {
+      loginHistoryFilter = loginHistoryFilterEl.value;
+      renderLoginHistory();
+    });
+  }
+
+  if (refreshLoginHistoryBtn) {
+    refreshLoginHistoryBtn.addEventListener('click', async () => {
+      await loadLoginHistory(true);
+      renderLoginHistory();
+      toast('success', 'Đã làm mới', 'Lịch sử đăng nhập đã được cập nhật.');
+    });
+  }
+
+  /* ── BULK OPERATIONS ──────────────────────────── */
+  function updateBulkActionsUI() {
+    const bar = document.getElementById('bulkActions');
+    const count = document.getElementById('bulkCount');
+    if (!bar) return;
+    if (selectedKeys.size > 0) {
+      bar.hidden = false;
+      if (count) count.textContent = selectedKeys.size;
+    } else {
+      bar.hidden = true;
+    }
+  }
+
+  function toggleSelectKey(keyId) {
+    if (selectedKeys.has(keyId)) {
+      selectedKeys.delete(keyId);
+    } else {
+      selectedKeys.add(keyId);
+    }
+    updateBulkActionsUI();
+    // Update row highlight
+    const row = document.querySelector(`.dg-row[data-key-id="${CSS.escape(keyId)}"]`);
+    if (row) {
+      row.classList.toggle('dg-row--selected', selectedKeys.has(keyId));
+    }
+    // Update check-all state
+    const checkAll = document.getElementById('bulkCheckAll');
+    if (checkAll && currentPageKeys) {
+      const allOnPage = currentPageKeys.every(id => selectedKeys.has(id));
+      const someOnPage = currentPageKeys.some(id => selectedKeys.has(id));
+      checkAll.checked = allOnPage;
+      checkAll.indeterminate = someOnPage && !allOnPage;
+    }
+  }
+
+  let currentPageKeys = [];
+
+  document.getElementById('bulkCheckAll')?.addEventListener('change', (e) => {
+    const checked = e.target.checked;
+    currentPageKeys.forEach(id => {
+      if (checked) {
+        selectedKeys.add(id);
+      } else {
+        selectedKeys.delete(id);
+      }
+    });
+    updateBulkActionsUI();
+    // Re-render table to update checkboxes
+    renderTable();
+  });
+
+  document.getElementById('bulkClearBtn')?.addEventListener('click', () => {
+    selectedKeys.clear();
+    updateBulkActionsUI();
+    renderTable();
+  });
+
+  document.getElementById('bulkDeleteBtn')?.addEventListener('click', async () => {
+    if (!selectedKeys.size) return;
+    if (!confirm(`Xoá ${selectedKeys.size} key đã chọn? Hành động này không thể hoàn tác.`)) return;
+    const ids = [...selectedKeys];
+    try {
+      await Promise.all(ids.map(id => KeyAPI.deleteKey(id)));
+      ids.forEach(id => delete keys[id]);
+      selectedKeys.clear();
+      updateBulkActionsUI();
+      renderAll();
+      toast('success', 'Đã xoá hàng loạt', `Đã xoá ${ids.length} key.`);
+    } catch (err) { toast('danger', 'Lỗi', err.message); }
+  });
+
+  document.getElementById('bulkBanBtn')?.addEventListener('click', async () => {
+    if (!selectedKeys.size) return;
+    const ids = [...selectedKeys];
+    const hasActive = ids.some(id => keys[id]?.status !== 'banned');
+    const action = hasActive ? 'khoá' : 'mở khoá';
+    if (!confirm(`${action === 'khoá' ? 'Khoá' : 'Mở khoá'} ${ids.length} key đã chọn?`)) return;
+    try {
+      const newStatus = hasActive ? 'banned' : 'active';
+      await Promise.all(ids.map(id => KeyAPI.updateKey(id, { status: newStatus })));
+      ids.forEach(id => { if (keys[id]) keys[id].status = newStatus; });
+      selectedKeys.clear();
+      updateBulkActionsUI();
+      renderAll();
+      toast('success', `Đã ${action} hàng loạt`, `${ids.length} key → ${action}`);
+    } catch (err) { toast('danger', 'Lỗi', err.message); }
+  });
+
+  // Delegated checkbox click for rows rendered in renderTable
+  document.addEventListener('click', (e) => {
+    const cb = e.target.closest('.dg-checkbox');
+    if (!cb) return;
+    const keyId = cb.dataset.keyId;
+    if (keyId) toggleSelectKey(keyId);
+  });
+
+  /* ── COMMAND PALETTE ─────────────────────────── */
+  const cmdPalette = document.getElementById('cmdPalette');
+  const cmdInput = document.getElementById('cmdInput');
+  const cmdResults = document.getElementById('cmdResults');
+  const cmdEmpty = document.getElementById('cmdEmpty');
+  let cmdIndex = -1;
+
+  function openCmdPalette() {
+    if (!cmdPalette) return;
+    cmdPalette.hidden = false;
+    requestAnimationFrame(() => cmdPalette.classList.add('is-open'));
+    if (cmdInput) {
+      cmdInput.value = '';
+      cmdInput.focus();
+    }
+    cmdIndex = -1;
+    renderCmdResults('');
+    document.body.classList.add('cmdk-open');
+  }
+
+  function closeCmdPalette() {
+    if (!cmdPalette) return;
+    cmdPalette.classList.add('is-closing');
+    cmdPalette.classList.remove('is-open');
+    setTimeout(() => {
+      cmdPalette.classList.remove('is-closing');
+      cmdPalette.hidden = true;
+    }, 260);
+    document.body.classList.remove('cmdk-open');
+  }
+
+  if (cmdPalette) {
+    cmdPalette.addEventListener('click', (e) => {
+      if (e.target === cmdPalette || e.target.closest('[data-close-cmd]')) closeCmdPalette();
+    });
+  }
+
+  if (cmdInput) {
+    cmdInput.addEventListener('input', () => {
+      cmdIndex = -1;
+      renderCmdResults(cmdInput.value.trim());
+    });
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && cmdPalette && !cmdPalette.hidden) {
+      closeCmdPalette();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      if (cmdPalette && !cmdPalette.hidden) {
+        closeCmdPalette();
+      } else {
+        openCmdPalette();
+      }
+      return;
+    }
+    // Arrow navigation within palette
+    if (cmdPalette && !cmdPalette.hidden) {
+      const items = cmdResults?.querySelectorAll('.cmdk-item') || [];
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        cmdIndex = Math.min(cmdIndex + 1, items.length - 1);
+        items.forEach((it, i) => it.classList.toggle('cmdk-item--active', i === cmdIndex));
+        items[cmdIndex]?.scrollIntoView({ block: 'nearest' });
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        cmdIndex = Math.max(cmdIndex - 1, 0);
+        items.forEach((it, i) => it.classList.toggle('cmdk-item--active', i === cmdIndex));
+        items[cmdIndex]?.scrollIntoView({ block: 'nearest' });
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (cmdIndex >= 0 && items[cmdIndex]) {
+          items[cmdIndex].click();
+        }
+      }
+    }
+  });
+
+  function renderCmdResults(query) {
+    if (!cmdResults || !cmdEmpty) return;
+
+    const results = [];
+    const q = query.toLowerCase();
+
+    if (!q) {
+      // Show pages (navigation)
+      results.push({ type: 'group', label: 'Trang' });
+      const pages = [
+        { id: 'dashboard', label: 'Dashboard', icon: `<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/></svg>` },
+        { id: 'keys', label: 'Quản lý Key', icon: `<svg viewBox="0 0 24 24" fill="none"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777z" stroke="currentColor" stroke-width="1.5"/><path d="M15.5 7.5l3-3M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>` },
+        { id: 'packages', label: 'Gói Key', icon: `<svg viewBox="0 0 24 24" fill="none"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" stroke="currentColor" stroke-width="1.5"/><path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12" stroke="currentColor" stroke-width="1.5"/></svg>` },
+        { id: 'check', label: 'Kiểm tra Key', icon: `<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>` },
+        { id: 'devices', label: 'Thiết bị', icon: `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>` },
+        { id: 'device-manager', label: 'Quản lý thiết bị', icon: `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>` },
+        { id: 'app-settings', label: 'Cài đặt App', icon: `<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="1.5"/></svg>` },
+        { id: 'menu-bypass', label: 'Menu Bypass', icon: `<svg viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>` },
+        { id: 'login-history', label: 'Lịch sử đăng nhập', icon: `<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M12 6v6l4 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>` },
+      ];
+      pages.forEach(p => {
+        results.push({
+          type: 'item',
+          id: `page:${p.id}`,
+          label: p.label,
+          icon: p.icon,
+          action: () => { closeCmdPalette(); gotoPage(p.id); },
+        });
+      });
+
+      results.push({ type: 'group', label: 'Hành động' });
+      results.push({
+        type: 'item',
+        id: 'action:create-key',
+        label: 'Tạo Key mới',
+        icon: `<svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+        action: () => { closeCmdPalette(); if (!Object.keys(packages).length) { toast('warning', 'Chưa có gói', 'Hãy tạo gói trước khi tạo key.'); gotoPage('packages'); openModal('#pkgModal'); } else openModal('#keyModal'); },
+      });
+      results.push({
+        type: 'item',
+        id: 'action:create-pkg',
+        label: 'Tạo Gói mới',
+        icon: `<svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+        action: () => { closeCmdPalette(); openModal('#pkgModal'); },
+      });
+      results.push({
+        type: 'item',
+        id: 'action:refresh',
+        label: 'Làm mới dữ liệu',
+        icon: `<svg viewBox="0 0 24 24" fill="none"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+        action: () => { closeCmdPalette(); loadAll(true); },
+      });
+      results.push({
+        type: 'item',
+        id: 'action:export',
+        label: 'Xuất CSV',
+        icon: `<svg viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+        action: () => { closeCmdPalette(); document.getElementById('exportBtn')?.click(); },
+      });
+    } else {
+      // Search keys
+      results.push({ type: 'group', label: 'Key' });
+      let keyCount = 0;
+      for (const [id, k] of Object.entries(keys)) {
+        if (keyCount >= 8) break;
+        const keyStr = (k.key || '').toLowerCase();
+        const uid = (k.uid || '').toLowerCase();
+        const pkg = pkgName(k.packageId || k.package).toLowerCase();
+        if (keyStr.includes(q) || uid.includes(q) || pkg.includes(q) || id.toLowerCase().includes(q)) {
+          keyCount++;
+          results.push({
+            type: 'item',
+            id: `key:${id}`,
+            label: esc(k.key || id),
+            icon: `<svg viewBox="0 0 24 24" fill="none"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777z" stroke="currentColor" stroke-width="1.5"/></svg>`,
+            hint: `${esc(pkgName(k.packageId || k.package))} • ${keyStatus(k)}`,
+            action: () => { closeCmdPalette(); copyText(k.key).then(() => toast('success', 'Đã sao chép', k.key)); gotoPage('keys'); },
+          });
+        }
+      }
+      if (keyCount === 0) {
+        results.push({ type: 'empty', label: 'Không tìm thấy key' });
+      }
+
+      // Search pages
+      results.push({ type: 'group', label: 'Trang' });
+      const pages = [
+        { id: 'dashboard', label: 'Dashboard' },
+        { id: 'keys', label: 'Quản lý Key' },
+        { id: 'packages', label: 'Gói Key' },
+        { id: 'check', label: 'Kiểm tra Key' },
+        { id: 'devices', label: 'Thiết bị' },
+        { id: 'device-manager', label: 'Quản lý thiết bị' },
+        { id: 'app-settings', label: 'Cài đặt App' },
+        { id: 'menu-bypass', label: 'Menu Bypass' },
+        { id: 'login-history', label: 'Lịch sử đăng nhập' },
+      ];
+      const matchedPages = pages.filter(p => p.label.toLowerCase().includes(q));
+      matchedPages.forEach(p => {
+        results.push({
+          type: 'item',
+          id: `page:${p.id}`,
+          label: p.label,
+          icon: `<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/></svg>`,
+          action: () => { closeCmdPalette(); gotoPage(p.id); },
+        });
+      });
+      if (matchedPages.length === 0) {
+        results.push({ type: 'empty', label: 'Không tìm thấy trang' });
+      }
+    }
+
+    // Render
+    let html = '';
+    let currentGroup = '';
+    let hasItems = false;
+
+    for (const r of results) {
+      if (r.type === 'group') {
+        if (currentGroup && hasItems) html += '</div>';
+        currentGroup = r.label;
+        hasItems = false;
+        html += `<div class="cmdk-group"><div class="cmdk-group__label">${esc(r.label)}</div>`;
+      } else if (r.type === 'item') {
+        hasItems = true;
+        html += `<div class="cmdk-item" data-cmd-id="${esc(r.id)}" tabindex="0">
+          <span class="cmdk-item__icon">${r.icon || ''}</span>
+          <span class="cmdk-item__text">${esc(r.label)}</span>
+          ${r.hint ? `<span class="cmdk-item__hint">${esc(r.hint)}</span>` : ''}
+        </div>`;
+      } else if (r.type === 'empty') {
+        html += `<div class="cmdk-empty">${esc(r.label)}</div>`;
+      }
+    }
+    if (currentGroup && hasItems) html += '</div>';
+
+    cmdResults.innerHTML = html;
+    cmdEmpty.hidden = results.some(r => r.type === 'item');
+
+    // Attach click handlers
+    cmdResults.querySelectorAll('.cmdk-item').forEach((item, i) => {
+      item.addEventListener('click', () => {
+        const id = item.dataset.cmdId;
+        const r = results.find(r => r.type === 'item' && r.id === id);
+        if (r?.action) r.action();
+      });
+      item.addEventListener('mouseenter', () => {
+        cmdIndex = i;
+        cmdResults.querySelectorAll('.cmdk-item').forEach((it, j) => it.classList.toggle('cmdk-item--active', j === i));
+      });
+    });
+  }
+
+  /* ── REAL-TIME SYNC (POLLING) ─────────────────── */
+  let syncInterval = null;
+  let syncEnabled = true;
+
+  function startSync() {
+    if (syncInterval) return;
+    syncInterval = setInterval(async () => {
+      if (!syncEnabled) return;
+      try {
+        const [freshKeys, freshPackages, freshBanned, freshBypass] = await Promise.all([
+          KeyAPI.getKeys(),
+          KeyAPI.getPackages(),
+          KeyAPI.getBannedUIDs(),
+          KeyAPI.getBypassStatus ? KeyAPI.getBypassStatus() : Promise.resolve(null),
+        ]);
+        const changed = JSON.stringify(keys) !== JSON.stringify(freshKeys)
+          || JSON.stringify(packages) !== JSON.stringify(freshPackages);
+        keys = freshKeys || {};
+        packages = freshPackages || {};
+        bannedUIDs = freshBanned || {};
+        if (freshBypass !== null) menuBypassStatus = freshBypass || { enabled: false };
+        // Only re-render if data actually changed
+        if (changed) {
+          renderStats();
+          renderTable();
+          renderRecent();
+          renderPkgGrid();
+          renderPkgStats();
+          renderPkgFilters();
+          renderDevices();
+          renderDeviceManager();
+          renderAppDevice();
+          renderMenuBypass();
+        }
+      } catch (e) {
+        // Silent fail for polling
+      }
+    }, 30000);
+  }
+
+  function stopSync() {
+    if (syncInterval) {
+      clearInterval(syncInterval);
+      syncInterval = null;
+    }
+  }
+
+  const syncToggleBtn = document.getElementById('syncToggleBtn');
+  if (syncToggleBtn) {
+    syncToggleBtn.addEventListener('click', () => {
+      syncEnabled = !syncEnabled;
+      if (syncEnabled) {
+        syncToggleBtn.classList.add('is-active');
+        syncToggleBtn.title = 'Đồng bộ: BẬT';
+        startSync();
+        toast('info', 'Đồng bộ thời gian thực', 'Đã bật đồng bộ tự động (30s).');
+      } else {
+        syncToggleBtn.classList.remove('is-active');
+        syncToggleBtn.title = 'Đồng bộ: TẮT';
+        stopSync();
+        toast('info', 'Đồng bộ thời gian thực', 'Đã tắt đồng bộ tự động.');
+      }
+    });
+  }
+
+  startSync();
 
   /* ── INIT ──────────────────────────────────── */
   loadAll();
